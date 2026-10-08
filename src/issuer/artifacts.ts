@@ -1,4 +1,3 @@
-import type { KeyObject } from "node:crypto";
 import { canonical, digest, exact, object, snapshot } from "../shared/canonical.ts";
 import { signCanonical } from "../shared/ed25519.ts";
 import { fail } from "../shared/errors.ts";
@@ -38,7 +37,7 @@ export function verifySuggestion(input: unknown, municipalityId: string): Readon
   return { event, draft: core };
 }
 
-export function issueEligibilityReceipt(policy: IssuerPolicy, signingKey: KeyObject, subjectPubkey: string, suggestion: NostrEvent, draft: SuggestionDraft, issuedAt: number): EligibilityReceipt {
+export function issueEligibilityReceipt(policy: IssuerPolicy, signingKey: Uint8Array, subjectPubkey: string, suggestion: NostrEvent, draft: SuggestionDraft, issuedAt: number): EligibilityReceipt {
   const eligibilityCore: ReceiptCore = { municipalityId: policy.municipalityId, eligibilityClass: "municipal_civic_participation", subjectPubkey,
     participantSuggestionId: suggestion.id, topicId: draft.topicId, policyVersion: policy.policyVersion, issuer: policy.issuer,
     issuedAt, expiresAt: issuedAt + policy.receiptTtlSeconds, authorityBinding: "civic_eligibility_only" };

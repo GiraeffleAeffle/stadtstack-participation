@@ -118,18 +118,29 @@ the generated Solidity verifier and `@aztec/bb.js` verify the same proof bytes.
 
 ## Advisory participation lane `src/vote`
 
-### Identity secret (client)
+### Client key material
 
-- The secret comes from the WebAuthn PRF extension. The PRF input is
-  `sha256("stadtstack-participation/person-secret/v1/" + municipalityId)`, so a
-  person has unrelated commitments in different municipalities.
-- `secret = HKDF-SHA256(ikm = prfOutput, salt = "stadtstack-participation",
-  info = "person-secret/v1/" + municipalityId, length = 64) mod r`; zero is
-  rejected.
-- There is no fallback secret storage. A device without PRF fails with
-  `prf_unavailable`.
-- PRF is requested when the credential is created and evaluated with
-  `userVerification: "required"`.
+All client secrets come from the WebAuthn PRF extension of a passkey,
+evaluated with `userVerification: "required"`. There is no fallback storage:
+a device without PRF fails with `prf_unavailable`. For a purpose `p` in one
+municipality:
+
+- PRF salt: `sha256("stadtstack-participation/" + p + "/v1/" + municipalityId)`;
+- expansion: `HKDF-SHA256(ikm = prfOutput, salt = "stadtstack-participation",
+  info = p + "/v1/" + municipalityId)`.
+
+| Purpose `p` | PRF slot | Result |
+|---|---|---|
+| `person-secret` | participant `first` | voting secret: 64 bytes mod `r`, zero rejected |
+| `nostr-subject` | participant `second` | Nostr secret key: 48 bytes mod `(n − 1)` plus 1, with `n` the secp256k1 order |
+| `attestor-key` | attestor `first` | Ed25519 secret key: 32 bytes |
+
+A participant gets both values from one assertion. The Nostr subject key is
+the public identity towards the issuer (NIP-98) and in Stadtstack receipts;
+different salts keep it cryptographically independent of the voting secret,
+and a person has unrelated keys in different municipalities. The passkey is
+bound to the exact host serving the client (see "Clients and hosting"); no
+helper accepts an `rpId`.
 
 ### Enrollment (issuer side)
 
@@ -260,6 +271,11 @@ against this issuer.
 | `POST /v1/attestation-revocations` | attestor signature | Record a revocation |
 | `POST /v1/identity-commitments` | NIP-98 (subject key) | Enroll a voting commitment |
 | `GET /v1/policy` | none | Public issuer policy |
+| `GET /v1/client-config` | none | What the web clients need: municipality, basis, adapter, chain |
+| `GET /v1/eligibility/me` | NIP-98 (subject key) | The caller's own eligibility and enrollment |
+| `POST /v1/eudi/requests` | NIP-98 (subject key) | Start an EUDI wallet presentation (`eudi_pid_v1` only) |
+| `GET /v1/eudi/requests/<transactionId>` | NIP-98 (same subject) | Presentation state |
+| `GET /v1/elections` | none | Open and closed polls, newest first; drafts are not listed |
 | `GET /v1/elections/<electionId>` | none | Election mirror and metadata |
 | `GET /v1/elections/<electionId>/anchor` | none | Anchor artifact |
 | `POST /v1/elections/<electionId>/ballots` | none (ZK proof) | Ballot intake |
@@ -273,12 +289,36 @@ with tags `u` (exact URL under `publicBaseUrl`), `method` and `payload`
 (SHA-256 of the body), `created_at` within the configured skew, and a
 single-use event id.
 
+`GET` requests with NIP-98 carry only the `u` and `method` tags.
+
+Response shapes of the client endpoints:
+
+- `GET /v1/client-config`:
+  `{ schemaVersion: "participation_client_config_v1", municipalityId, ags,
+  policyVersion, displayName, publicBaseUrl, adapterKind, basis,
+  attestors: [{ attestorId, publicKey }] | null, chain: { chainId,
+  registryAddress, rpcUrl } | null }`. `attestors` is non-null only for
+  `in_person_attestors_v1`; the keys are already public in the policy.
+  `chain` is null until the operator configures a deployed registry.
+- `GET /v1/elections`: `{ elections: [{ electionId, state, opensAt, closesAt,
+  anchorRoot, scope, metadataHash, metadata }] }`.
+- `GET /v1/eligibility/me`: `{ subjectPubkey, eligibility: { state: "active",
+  effectiveAt, validUntil } | { state: "inactive", reason }, enrollment:
+  { identityCommitment, enrolledAt } | null }`. With an active enrollment the
+  adapter re-checks its evidence; without one, `preview` answers if the
+  adapter has it, otherwise the reason is `evidence_required`.
+
 ### Adapter seam
 
 Adapters live in `src/adapters` and implement `EligibilityAdapter` from
 `src/shared/seams.ts`. `check` evaluates evidence for a request; `recheck`
 re-evaluates a stored issuer-private `evidenceRef` for status responses and
-anchors. Adapters never appear in receipts.
+anchors; the optional `preview` evaluates a subject without request evidence.
+Adapters never appear in receipts.
+
+A policy names exactly one adapter. Evidence from two adapters cannot be
+matched to one person, so mixing them would let a person enroll once per
+adapter.
 
 #### `in_person_attestors_v1`
 
@@ -326,14 +366,81 @@ key, purpose, request id and time. The adapter checks the contract's code
 hash and calls `isActive(wallet)` at `blockTag`. `evidenceRef` is the wallet
 address, kept private by the issuer.
 
+#### `eudi_pid_v1`
+
+Eligibility from an EU Digital Identity Wallet presentation (OpenID4VP) of
+the person identification data (PID). Design and limits:
+[ADR 0006](adr/0006-eudi-pid-adapter.md). The adapter requests only
+`address.postal_code`, `address.locality` and the age predicate
+`age_equal_or_over.<minimumAgeYears>` (test PIDs without age claims: the birth
+date, which is checked and discarded). It never requests names or the street.
+The PID carries no municipality key, so the policy lists the accepted
+`(postal code, locality)` pairs of the municipality. `evidenceRef` is a keyed
+hash of the credential's holder key, so one credential holds one enrollment.
+
+## Clients and hosting
+
+One host serves the API and both web clients, for example
+`mitmachen.stadtstack.eu`. Passkeys are bound to that exact host: a client
+never sets `rpId`, and the host is never registered for a parent domain,
+because any origin allowed to use the same passkey and the public PRF salt
+could derive the voting secret. No other application shares the host.
+
+- `/` is the participant client: create the passkey, show the subject code,
+  check eligibility, enroll, see polls, prove and send a ballot, see results.
+- `/pruefung` is the attestor client: derive the attestor key, show its public
+  key for the policy, scan a subject code, sign attestations and revocations.
+- City-facing text is German.
+
+The subject code that an attestor scans is the text
+`stadtstack-participation/subject/v1/<municipalityId>/<subjectPubkey>`. Both
+devices show the fingerprint `xxxx xxxx … xxxx xxxx` (first and last eight hex
+digits) so the attestor can compare it with the person's screen.
+
+HTML and assets are served with `Content-Security-Policy` limited to the own
+origin plus the configured RPC origin (`script-src 'self' 'wasm-unsafe-eval'`,
+`worker-src 'self' blob:`), `Cross-Origin-Opener-Policy: same-origin`,
+`Cross-Origin-Embedder-Policy: require-corp`, `Referrer-Policy: no-referrer`,
+`X-Content-Type-Options: nosniff` and a `Permissions-Policy` that allows only
+camera and passkeys for the own origin.
+
 ## Storage
 
 `node:sqlite`, one database. Each module creates its own tables through an
 idempotent `migrate(db)`. Uniqueness that matters for safety is enforced by
-the database: one ballot per `(election_id, nullifier)`, one active
-commitment per `(municipality_id, subject_pubkey)`, one acceptance per
-`(municipality_id, participant_suggestion_id, adopter_pubkey)`, single-use
-NIP-98 event ids.
+the database:
+
+- one ballot per `(election_id, nullifier)`;
+- one active enrollment per `(municipality_id, subject_pubkey)` and per
+  `(municipality_id, evidence_ref)`. A new subject key presenting the same
+  evidence (e.g. after a lost passkey) supersedes the old enrollment unless an
+  open poll's anchor contains its commitment;
+- one subject per `(participant_suggestion_id, evidence_ref)`, so one person
+  adopts a suggestion only once;
+- one acceptance per `(municipality_id, participant_suggestion_id, adopter_pubkey)`;
+- single-use NIP-98 event ids.
+
+## Operations
+
+`npm run operator -- <command>` (`src/cli/operator.ts`) prepares everything an
+operator signs elsewhere; it never holds a chain key.
+
+- `issuer-key`: write a new Ed25519 issuer key as PKCS#8 PEM (mode 0600) and
+  print its public key.
+- `policy`: build and validate a policy from a pinned Stadtstack registry
+  snapshot (unit id → AGS and snapshot digest) and explicit basis, adapter and
+  URL options; print the Stadtstack verifier policy.
+- `poll-draft`: compute the election id and metadata hash, build the anchor
+  from current eligibility, store the draft, and write a Safe Transaction
+  Builder batch plus the equivalent `cast send` command for `openElection`.
+- `poll-confirm-open` / `poll-confirm-close`: read the registry and record the
+  on-chain state in the mirror.
+- `poll-tally`: after `closesAt`, build and store the tally and write the
+  batch for `closeElection`.
+- `poll-result`: project a closed poll to `participation_result_v1` with
+  caller-supplied review context.
+
+The registry's admin and operator are a Safe. Staging uses Gnosis Chiado.
 
 ## Toolchain
 

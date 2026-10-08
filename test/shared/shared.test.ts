@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createPublicKey, generateKeyPairSync, verify } from "node:crypto";
 import { describe, it } from "node:test";
 import { finalizeEvent, generateSecretKey } from "nostr-tools/pure";
 import { canonical, snapshot } from "../../src/shared/canonical.ts";
@@ -30,6 +31,17 @@ describe("Ed25519 canonical signatures", () => {
     assert.equal(verifyCanonical(publicKey, { a: 2, b: "x" }, signature), false);
     assert.equal(verifyCanonical(ed25519PublicKeyHex(loadEd25519PrivateKey({ seedHex: "22".repeat(32) })), { a: 1, b: "x" }, signature), false);
     assert.equal(verifyCanonical(publicKey, { a: 1, b: "x" }, `${signature}=`), false);
+  });
+
+  it("loads an OpenSSL-style PKCS#8 PEM and produces signatures Node's own Ed25519 accepts", () => {
+    const { privateKey } = generateKeyPairSync("ed25519");
+    const loaded = loadEd25519PrivateKey({ pem: privateKey.export({ format: "pem", type: "pkcs8" }).toString() });
+    const nodePublicKey = createPublicKey(privateKey);
+    assert.equal(ed25519PublicKeyHex(loaded), Buffer.from(nodePublicKey.export({ format: "der", type: "spki" })).subarray(12).toString("hex"));
+    const message = { domain: "test/v1", value: 7 };
+    const signature = Buffer.from(signCanonical(loaded, message), "base64url");
+    assert.equal(verify(null, Buffer.from(canonical(message)), nodePublicKey, signature), true);
+    assert.throws(() => loadEd25519PrivateKey({ pem: generateKeyPairSync("ec", { namedCurve: "P-256" }).privateKey.export({ format: "pem", type: "pkcs8" }).toString() }), /signing_key_invalid/);
   });
 });
 

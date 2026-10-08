@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
-import { types as utilTypes } from "node:util";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import { fail } from "./errors.ts";
 
 /** Canonical JSON, byte-identical to Stadtstack's: keys sorted recursively. */
@@ -13,12 +13,12 @@ export function canonical(value: unknown): string {
 }
 
 export function sha256Hex(input: string | Uint8Array): string {
-  return createHash("sha256").update(input).digest("hex");
+  return bytesToHex(sha256(typeof input === "string" ? utf8ToBytes(input) : input));
 }
 
 /** Lowercase SHA-256 hex of the UTF-8 canonical JSON. */
 export function digest(value: unknown): string {
-  return sha256Hex(Buffer.from(canonical(value), "utf8"));
+  return sha256Hex(canonical(value));
 }
 
 export type SnapshotLimits = Readonly<{
@@ -36,6 +36,11 @@ export const DEFAULT_SNAPSHOT_LIMITS: SnapshotLimits = Object.freeze({
   maxStringBytes: 65_536,
   maxArrayLength: 512,
 });
+
+// Node exposes proxy detection without an import, so this module also loads in
+// browsers. There it is unavailable, and the copy-once snapshot below already
+// prevents a proxy from changing values between validation and use.
+const isProxy = typeof process === "undefined" ? undefined : process.getBuiltinModule("node:util").types.isProxy;
 
 /**
  * Copy untrusted JSON-shaped data into frozen plain objects within fixed
@@ -58,12 +63,12 @@ export function snapshot(input: unknown, code = "shape_invalid", limits: Snapsho
       return value;
     }
     if (typeof value === "string") {
-      const size = Buffer.byteLength(value, "utf8");
+      const size = utf8ToBytes(value).length;
       if (size > limits.maxStringBytes) fail(code);
       account(size);
       return value;
     }
-    if (typeof value !== "object" || utilTypes.isProxy(value)) fail(code);
+    if (typeof value !== "object" || isProxy?.(value)) fail(code);
     const array = Array.isArray(value);
     if (Object.getPrototypeOf(value) !== (array ? Array.prototype : Object.prototype)) fail(code);
     const keys = Reflect.ownKeys(value);
@@ -72,7 +77,7 @@ export function snapshot(input: unknown, code = "shape_invalid", limits: Snapsho
     if (array && (value.length > limits.maxArrayLength || keys.length !== value.length + 1)) fail(code);
     const fields = array ? Array.from({ length: value.length }, (_, index) => String(index)) : (keys as string[]);
     const entries = fields.map((key) => {
-      account(Buffer.byteLength(key, "utf8"));
+      account(utf8ToBytes(key).length);
       const descriptor = descriptors[key];
       if (!descriptor || !("value" in descriptor) || !descriptor.enumerable) fail(code);
       return [key, visit(descriptor.value, depth + 1)] as const;
@@ -80,7 +85,7 @@ export function snapshot(input: unknown, code = "shape_invalid", limits: Snapsho
     return Object.freeze(array ? entries.map(([, child]) => child) : Object.fromEntries(entries));
   };
   const result = visit(input, 0);
-  if (Buffer.byteLength(canonical(result), "utf8") > limits.maxBytes) fail(code);
+  if (utf8ToBytes(canonical(result)).length > limits.maxBytes) fail(code);
   return result;
 }
 

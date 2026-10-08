@@ -1,3 +1,5 @@
+import { utf8ToBytes } from "@noble/hashes/utils.js";
+import { base64 } from "@scure/base";
 import { getEventHash, validateEvent, verifyEvent, type Event as NostrEvent, type EventTemplate } from "nostr-tools/pure";
 import { exact, isSafeNonNegativeInteger, sha256Hex, snapshot } from "./canonical.ts";
 import { fail } from "./errors.ts";
@@ -46,7 +48,7 @@ export function verifyNip98(request: Nip98Request): Nip98Identity {
   if (typeof header !== "string" || !header.startsWith("Nostr ") || header.length > 16_384) fail("auth_required", 401);
   let decoded: unknown;
   try {
-    decoded = JSON.parse(Buffer.from(header.slice(6), "base64").toString("utf8"));
+    decoded = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(base64.decode(header.slice(6))));
   } catch {
     fail("auth_invalid", 401);
   }
@@ -70,5 +72,5 @@ export function nip98Template(input: Readonly<{ url: string; method: string; bod
 
 /** `Authorization` header value for a signed NIP-98 event. */
 export function nip98Header(event: NostrEvent): string {
-  return `Nostr ${Buffer.from(JSON.stringify(event), "utf8").toString("base64")}`;
+  return `Nostr ${base64.encode(utf8ToBytes(JSON.stringify(event)))}`;
 }

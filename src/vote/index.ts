@@ -1,7 +1,7 @@
 export { FIELD_MODULUS, DOMAINS, h, fieldHex, parseField, identityCommitment, bytesHex, proofBytes, type Hex } from "./hash.ts";
 export { TREE_DEPTH, TREE_CAPACITY, buildMerkleTree, inclusionPath, rootFromPath, type MerkleTree, type InclusionPath } from "./merkle.ts";
 export { electionId, electionScope, electionNullifier, signalHash, metadataHash, validateMetadata, type ElectionMetadata } from "./election.ts";
-export { prfInput, secretFromPrf, credentialCreationOptions, deriveIdentitySecret } from "./identity.ts";
+export { participantPrfSalts, attestorPrfSalt, secretFromPrf, nostrSecretKeyFromPrf, attestorSeedFromPrf, credentialCreationOptions, deriveParticipantKeys, deriveAttestorSecretKey } from "./identity.ts";
 export { buildAnchor, type ElectionAnchor } from "./anchor.ts";
 export { VoteProver, type VoteCircuit } from "./prover.ts";
 export { VoteVerifier, type BallotVerifier } from "./verifier.ts";

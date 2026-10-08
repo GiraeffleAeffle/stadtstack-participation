@@ -1,4 +1,3 @@
-import type { KeyObject } from "node:crypto";
 import { canonical, digest, exact, isSafeNonNegativeInteger, object, snapshot } from "../shared/canonical.ts";
 import { ed25519PublicKeyHex, signCanonical } from "../shared/ed25519.ts";
 import { fail } from "../shared/errors.ts";
@@ -12,16 +11,17 @@ import { IssuerStore } from "./store.ts";
 const FIELD_MODULUS = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
 type ReceiptRow = { receipt_json: string; suggestion_json: string; evidence_ref: string };
 type EnrollmentRow = { id: number; municipality_id: string; policy_version: string; subject_pubkey: string; commitment: `0x${string}`; evidence_ref: string };
+type SuggestionEvidenceRow = { subject_pubkey: string };
 
 export class IssuerService implements EligibleCommitmentSource {
   readonly policy: IssuerPolicy;
   readonly store: IssuerStore;
   readonly adapter: EligibilityAdapter;
-  readonly signingKey: KeyObject;
+  readonly signingKey: Uint8Array;
   readonly clock: Clock;
   readonly commitmentLock: CommitmentLock;
 
-  constructor(options: Readonly<{ policy: IssuerPolicy; store: IssuerStore; adapter: EligibilityAdapter; signingKey: KeyObject; clock: Clock; commitmentLock: CommitmentLock }>) {
+  constructor(options: Readonly<{ policy: IssuerPolicy; store: IssuerStore; adapter: EligibilityAdapter; signingKey: Uint8Array; clock: Clock; commitmentLock: CommitmentLock }>) {
     this.policy = parseIssuerPolicy(options.policy); this.store = options.store; this.adapter = options.adapter;
     this.signingKey = options.signingKey; this.clock = options.clock; this.commitmentLock = options.commitmentLock;
     if (ed25519PublicKeyHex(this.signingKey) !== this.policy.issuerPublicKey || this.adapter.kind !== this.policy.adapter.kind) fail("issuer_configuration_invalid", 500);
@@ -46,7 +46,14 @@ export class IssuerService implements EligibleCommitmentSource {
       requestId: identity.eventId, evidence: request.evidence, now, signal });
     this.requireActive(decision, now);
     const receipt = issueEligibilityReceipt(this.policy, this.signingKey, identity.pubkey, event, draft, now);
-    this.store.db.prepare("INSERT OR IGNORE INTO issuer_receipts VALUES (?, ?, ?, ?, ?)").run(receipt.payloadChecksum, receipt.receiptId, canonical(receipt), canonical(event), decision.evidenceRef);
+    this.store.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.store.db.prepare("INSERT OR IGNORE INTO issuer_suggestion_evidence VALUES (?, ?, ?)").run(event.id, decision.evidenceRef, identity.pubkey);
+      const bound = this.store.db.prepare("SELECT subject_pubkey FROM issuer_suggestion_evidence WHERE participant_suggestion_id=? AND evidence_ref=?").get(event.id, decision.evidenceRef) as SuggestionEvidenceRow;
+      if (bound.subject_pubkey !== identity.pubkey) fail("evidence_already_used", 409);
+      this.store.db.prepare("INSERT OR IGNORE INTO issuer_receipts VALUES (?, ?, ?, ?, ?)").run(receipt.payloadChecksum, receipt.receiptId, canonical(receipt), canonical(event), decision.evidenceRef);
+      this.store.db.exec("COMMIT");
+    } catch (error) { this.store.db.exec("ROLLBACK"); throw error; }
     return receipt;
   }
 
@@ -112,16 +119,22 @@ export class IssuerService implements EligibleCommitmentSource {
     this.requireActive(decision, enrolledAt);
     this.store.db.exec("BEGIN IMMEDIATE");
     try {
-      const current = this.store.db.prepare("SELECT * FROM issuer_enrollments WHERE municipality_id=? AND subject_pubkey=? AND active=1").get(this.policy.municipalityId, identity.pubkey) as EnrollmentRow | undefined;
-      if (current?.commitment === request.identityCommitment) {
-        this.store.db.prepare("UPDATE issuer_enrollments SET policy_version=?, evidence_ref=? WHERE id=?").run(this.policy.policyVersion, decision.evidenceRef, current.id);
-        this.store.db.exec("COMMIT");
-        return { identityCommitment: current.commitment, state: "active" };
+      const scope = { municipalityId: this.policy.municipalityId, at: enrolledAt };
+      const bySubject = this.store.db.prepare("SELECT * FROM issuer_enrollments WHERE municipality_id=? AND subject_pubkey=? AND active=1").get(this.policy.municipalityId, identity.pubkey) as EnrollmentRow | undefined;
+      const byEvidence = this.store.db.prepare("SELECT * FROM issuer_enrollments WHERE municipality_id=? AND evidence_ref=? AND active=1").get(this.policy.municipalityId, decision.evidenceRef) as EnrollmentRow | undefined;
+      // A new subject key with the same evidence (for example after a lost
+      // passkey) supersedes the old enrollment, unless an open poll pins it.
+      const current = [bySubject, byEvidence].filter((row, index, rows): row is EnrollmentRow => row !== undefined && rows.findIndex((other) => other?.id === row.id) === index);
+      const kept = current.find((row) => row.subject_pubkey === identity.pubkey && row.commitment === request.identityCommitment);
+      const superseded = current.filter((row) => row !== kept);
+      if (superseded.some((row) => this.commitmentLock.isCommitmentInOpenAnchor({ ...scope, commitment: row.commitment }))) fail("commitment_locked", 409);
+      for (const row of superseded) this.store.db.prepare("UPDATE issuer_enrollments SET active=0 WHERE id=?").run(row.id);
+      if (kept) {
+        this.store.db.prepare("UPDATE issuer_enrollments SET policy_version=?, evidence_ref=? WHERE id=?").run(this.policy.policyVersion, decision.evidenceRef, kept.id);
+      } else {
+        const insert = this.store.db.prepare("INSERT OR IGNORE INTO issuer_enrollments(municipality_id,policy_version,subject_pubkey,commitment,evidence_ref,enrolled_at,active) VALUES (?,?,?,?,?,?,1)").run(this.policy.municipalityId, this.policy.policyVersion, identity.pubkey, request.identityCommitment, decision.evidenceRef, enrolledAt);
+        if (insert.changes !== 1) fail("commitment_already_enrolled", 409);
       }
-      if (current && this.commitmentLock.isCommitmentInOpenAnchor({ municipalityId: this.policy.municipalityId, commitment: current.commitment, at: enrolledAt })) fail("commitment_locked", 409);
-      if (current) this.store.db.prepare("UPDATE issuer_enrollments SET active=0 WHERE id=?").run(current.id);
-      const insert = this.store.db.prepare("INSERT OR IGNORE INTO issuer_enrollments(municipality_id,policy_version,subject_pubkey,commitment,evidence_ref,enrolled_at,active) VALUES (?,?,?,?,?,?,1)").run(this.policy.municipalityId, this.policy.policyVersion, identity.pubkey, request.identityCommitment, decision.evidenceRef, enrolledAt);
-      if (insert.changes !== 1) fail("commitment_already_enrolled", 409);
       this.store.db.exec("COMMIT");
     } catch (error) { this.store.db.exec("ROLLBACK"); throw error; }
     return { identityCommitment: request.identityCommitment, state: "active" };

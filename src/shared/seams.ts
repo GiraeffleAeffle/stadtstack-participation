@@ -48,6 +48,13 @@ export interface EligibilityAdapter {
   readonly kind: string;
   check(input: EligibilityCheckInput): Promise<EligibilityDecision>;
   recheck(input: EligibilityRecheckInput): Promise<EligibilityDecision>;
+  /**
+   * Eligibility of a subject without request evidence, for adapters whose
+   * evidence lives with the issuer (in-person attestations). Adapters that
+   * need fresh evidence from the person (wallet proof, EUDI presentation)
+   * omit it, and callers report `evidence_required`.
+   */
+  preview?(input: Readonly<{ municipalityId: string; policyVersion: string; subjectPubkey: string; now: number; signal: AbortSignal }>): Promise<EligibilityDecision>;
 }
 
 /** Provided by the issuer: commitments whose eligibility re-check is active. */
