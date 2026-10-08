@@ -1,0 +1,14 @@
+export { FIELD_MODULUS, DOMAINS, h, fieldHex, parseField, identityCommitment, bytesHex, proofBytes, type Hex } from "./hash.ts";
+export { TREE_DEPTH, TREE_CAPACITY, buildMerkleTree, inclusionPath, rootFromPath, type MerkleTree, type InclusionPath } from "./merkle.ts";
+export { electionId, electionScope, electionNullifier, signalHash, metadataHash, validateMetadata, type ElectionMetadata } from "./election.ts";
+export { prfInput, secretFromPrf, credentialCreationOptions, deriveIdentitySecret } from "./identity.ts";
+export { buildAnchor, type ElectionAnchor } from "./anchor.ts";
+export { VoteProver, type VoteCircuit } from "./prover.ts";
+export { VoteVerifier, type BallotVerifier } from "./verifier.ts";
+export { BallotIntake, validateBallot, type Ballot, type IntakeOptions } from "./intake.ts";
+export { VoteStore, migrate } from "./store.ts";
+export { buildTally, tallyHash, type Tally } from "./tally.ts";
+export { projectParticipationResult, type ParticipationResult, type RepresentationAudit, type ResultContext } from "./result.ts";
+export { ELECTION_REGISTRY_ABI, getElection, assertElectionMatchesChain, type ChainElection, type ElectionMirror } from "./registry-client.ts";
+export { submitBallot } from "./client.ts";
+export { createVoteHttpHandlers, type VoteHttpOptions } from "./http.ts";

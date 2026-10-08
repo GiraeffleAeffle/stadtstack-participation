@@ -1,0 +1,8 @@
+[package]
+name = "membership_vote"
+type = "bin"
+authors = ["Max"]
+# nargo beta.18 accepts only release semver requirements; scripts enforce the exact prerelease.
+compiler_version = "=1.0.0"
+
+[dependencies]

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "membership_vote_artifacts_v1",
+  "proofSystem": "UltraHonk",
+  "oracleHash": "keccak",
+  "zeroKnowledge": true,
+  "publicInputs": [
+    "root",
+    "nullifier",
+    "scope",
+    "signal_hash"
+  ],
+  "artifacts": {
+    "membership_vote.json": "509004b7575541062d736d72f9fbda28af6dacec946df832109d7f1af88f8bcf",
+    "membership_vote.vk": "92f2caf9d4c25cb7f8a9efa7b9e3d7d0ad24f79e0c94fa91eeda44adff026e46"
+  },
+  "vkHash": "0x2bb272504fd335a89b195f29d86e2f77f3612ed2056d932db0c79e436fbc7cad",
+  "tools": {
+    "nargo": "nargo version = 1.0.0-beta.18\nnoirc version = 1.0.0-beta.18+99bb8b5cf33d7669adbdef096b12d80f30b4c0c9\n(git version hash: 99bb8b5cf33d7669adbdef096b12d80f30b4c0c9, is dirty: false)",
+    "bb": "3.0.0-nightly.20251104",
+    "noirJs": "1.0.0-beta.18",
+    "bbJs": "3.0.0-nightly.20251104"
+  },
+  "verifierSha256": "48324179fb7dd60e3b8f1244f7373ec8d5037ca09fb2e64f6fe1178210fcd286",
+  "proofFields": 222
+}

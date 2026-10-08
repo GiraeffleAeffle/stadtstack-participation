@@ -1,0 +1,45 @@
+{
+  "name": "stadtstack-participation",
+  "version": "0.1.0",
+  "description": "Municipality-neutral eligibility issuer and anonymous advisory participation for Stadtstack.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
+  "exports": {
+    "./issuer": "./src/issuer/index.ts",
+    "./vote": "./src/vote/index.ts",
+    "./adapters/in-person-attestors": "./src/adapters/in-person-attestors.ts",
+    "./adapters/roebel-citizen-nft": "./src/adapters/roebel-citizen-nft.ts",
+    "./http": "./src/http.ts"
+  },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 'test/**/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "circuit:test": "nargo test --program-dir circuits/membership_vote",
+    "circuit:build": "node scripts/build-circuit.mjs",
+    "verifier:generate": "node scripts/generate-verifier.mjs",
+    "fixtures:build": "node scripts/build-fixtures.mjs",
+    "artifacts:check": "node scripts/check-artifacts.mjs",
+    "contracts:test": "forge test --root contracts",
+    "verify:public": "node scripts/verify-public-boundary.mjs",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run circuit:test && npm run contracts:test && npm run artifacts:check && npm run verify:public"
+  },
+  "dependencies": {
+    "@aztec/bb.js": "3.0.0-nightly.20251104",
+    "@noir-lang/noir_js": "1.0.0-beta.18",
+    "@openzeppelin/contracts": "5.5.0",
+    "@zkpassport/poseidon2": "0.6.2",
+    "nostr-tools": "2.24.1",
+    "viem": "2.57.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.13",
+    "eslint": "10.8.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.66.0"
+  }
+}
