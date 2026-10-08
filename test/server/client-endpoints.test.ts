@@ -19,26 +19,29 @@ function meRequest(at: number): Request {
 test("client config exposes only public adapter keys and validates all-or-none chain configuration", async () => {
   const c = setup();
   try {
-    const config = createClientConfig(c.policy, { DISPLAY_NAME: "Beispielstadt" });
+    const config = createClientConfig(c.policy, { DISPLAY_NAME: "Beispielstadt", OPERATOR_NAME: "Stadtstack" });
     assert.deepEqual(config, { schemaVersion: "participation_client_config_v1", municipalityId: c.policy.municipalityId, ags: c.policy.ags,
-      policyVersion: c.policy.policyVersion, displayName: "Beispielstadt", publicBaseUrl: c.policy.publicBaseUrl,
+      policyVersion: c.policy.policyVersion, displayName: "Beispielstadt", operator: { name: "Stadtstack", isMunicipality: false }, publicBaseUrl: c.policy.publicBaseUrl,
       adapterKind: c.policy.adapter.kind, basis: c.policy.basis,
       attestors: c.policy.adapter.kind === "in_person_attestors_v1" ? c.policy.adapter.attestors.map(({ attestorId, publicKey }) => ({ attestorId, publicKey })) : null, chain: null });
     const handler = createHttpHandler({ issuer: c.issuer, clientConfig: config });
     const response = await handler(new Request(`${c.policy.publicBaseUrl}/v1/client-config`));
     assert.equal(response.status, 200); assert.deepEqual(await response.json(), config);
-    const valid = { DISPLAY_NAME: "Stadt", CHAIN_ID: "10200", REGISTRY_ADDRESS: `0x${"aB".repeat(20)}`, PUBLIC_RPC_URL: "https://rpc.chiadochain.net" };
+    const valid = { DISPLAY_NAME: "Stadt", OPERATOR_NAME: "Stadtstack", CHAIN_ID: "10200", REGISTRY_ADDRESS: `0x${"aB".repeat(20)}`, PUBLIC_RPC_URL: "https://rpc.chiadochain.net" };
     const chain = createClientConfig(c.policy, valid).chain;
     assert.deepEqual(chain, { chainId: 10200, registryAddress: `0x${"ab".repeat(20)}`, rpcUrl: "https://rpc.chiadochain.net/" });
     assert.equal(createClientConfig(c.policy, { ...valid, PUBLIC_RPC_URL: "http://localhost:8545" }).chain?.rpcUrl, "http://localhost:8545/");
-    for (const environment of [ {}, { DISPLAY_NAME: " " }, { DISPLAY_NAME: "Stadt", CHAIN_ID: "10200" },
+    assert.deepEqual(createClientConfig(c.policy, { ...valid, OPERATOR_NAME: "Stadt Beispiel", OPERATOR_IS_MUNICIPALITY: "true" }).operator, { name: "Stadt Beispiel", isMunicipality: true });
+    // Without a named operator the page could pass for an official service.
+    for (const environment of [ {}, { DISPLAY_NAME: " ", OPERATOR_NAME: "Stadtstack" }, { DISPLAY_NAME: "Stadt" }, { DISPLAY_NAME: "Stadt", OPERATOR_NAME: " " },
+      { ...valid, OPERATOR_IS_MUNICIPALITY: "yes" }, { DISPLAY_NAME: "Stadt", OPERATOR_NAME: "Stadtstack", CHAIN_ID: "10200" },
       { ...valid, CHAIN_ID: "0" }, { ...valid, CHAIN_ID: "1.5" }, { ...valid, CHAIN_ID: "9007199254740992" },
       { ...valid, REGISTRY_ADDRESS: "0x12" }, { ...valid, PUBLIC_RPC_URL: "http://rpc.example" },
       { ...valid, PUBLIC_RPC_URL: "https://user:password@rpc.example" }, { ...valid, PUBLIC_RPC_URL: "not a url" },
       { ...valid, PUBLIC_RPC_URL: "https://rpc.example/#fragment" } ]) assert.throws(() => createClientConfig(c.policy, environment));
     const nftPolicy = { ...c.policy, adapter: { kind: "roebel_citizen_nft_v1", chainId: 100, contractAddress: `0x${"11".repeat(20)}` as `0x${string}`,
       expectedCodeHash: `0x${"22".repeat(32)}` as `0x${string}`, blockTag: "finalized", walletProofMaxAgeSeconds: 300 } } as const;
-    assert.equal(createClientConfig(nftPolicy, { DISPLAY_NAME: "Stadt" }).attestors, null);
+    assert.equal(createClientConfig(nftPolicy, { DISPLAY_NAME: "Stadt", OPERATOR_NAME: "Stadtstack" }).attestors, null);
   } finally { c.db.close(); }
 });
 

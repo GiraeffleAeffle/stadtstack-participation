@@ -5,6 +5,8 @@ export type EligibilityBasis = Readonly<{ residence: "main_residence" | "main_or
 export type ClientConfig = Readonly<{
   schemaVersion: "participation_client_config_v1";
   municipalityId: string; ags: string; policyVersion: string; displayName: string; publicBaseUrl: string;
+  /** Who runs this service; `isMunicipality` is false for independent operators. */
+  operator: Readonly<{ name: string; isMunicipality: boolean }>;
   adapterKind: string; basis: EligibilityBasis;
   attestors: readonly Readonly<{ attestorId: string; publicKey: string }>[] | null;
   chain: Readonly<{ chainId: number; registryAddress: `0x${string}`; rpcUrl: string }> | null;

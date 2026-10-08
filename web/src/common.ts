@@ -32,7 +32,12 @@ export function basisConditions(config: ClientConfig): string[] {
 export function showConfig(config: ClientConfig): void {
   element("municipality").textContent = config.displayName;
   element("basis").textContent = basisConditions(config).join(" · ");
+  element("operator").textContent = operatorNotice(config);
   element("test-mode").hidden = config.chain?.chainId !== 10200;
+}
+/** Who runs the service, so an independent offer never looks official. */
+export function operatorNotice(config: ClientConfig): string {
+  return config.operator.isMunicipality ? `Ein Angebot von ${config.operator.name}.` : `Ein unabhängiges Angebot von ${config.operator.name} – kein Angebot der Verwaltung von ${config.displayName}.`;
 }
 export function renderQr(target: HTMLElement, text: string): void {
   const { data, size } = encode(text, { ecc: "M" });

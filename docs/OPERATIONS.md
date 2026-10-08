@@ -59,6 +59,8 @@ before serving it; do not replace reviewed assets during a poll without review.
 | `POLICY_PATH` | Path to the validated public issuer policy JSON. CLI and server must use the same policy version. |
 | `ISSUER_SIGNING_KEY_FILE` | Private Ed25519 PKCS#8 PEM file matching the public policy key; restrict access, never publish it. |
 | `DISPLAY_NAME` | Required municipality display name used by the web client. |
+| `OPERATOR_NAME` | Required name of whoever runs the service, shown on every page. |
+| `OPERATOR_IS_MUNICIPALITY` | `true` only if the municipality itself runs the service; otherwise (default `false`) the clients state that it is not an offer of its administration. |
 | `HOST` | Bind address, default `127.0.0.1`; container deployments can set `0.0.0.0` behind a restricted proxy. |
 | `CLIENT_KEY_HEADER` | Optional trusted proxy client-key header for transient rate limiting; the proxy must overwrite it and block direct access. Never trust a client-supplied value. |
 | `EUDI_UNIQUENESS_KEY_FILE` | Required for `eudi_pid_v1`: private raw file containing at least 32 random bytes, separate from the issuer signing key. |

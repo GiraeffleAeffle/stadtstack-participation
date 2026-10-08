@@ -13,6 +13,11 @@ export type HttpHandler = (request: Request) => Promise<Response>;
 export function createClientConfig(policy: IssuerPolicy, environment: NodeJS.ProcessEnv): ClientConfig {
   const displayName = environment.DISPLAY_NAME?.trim();
   if (!displayName) fail("server_display_name_invalid", 500);
+  // Who runs the service is always shown: an independent operator must never
+  // look like the municipality.
+  const operatorName = environment.OPERATOR_NAME?.trim();
+  const { OPERATOR_IS_MUNICIPALITY: isMunicipality } = environment;
+  if (!operatorName || operatorName.length > 200 || (isMunicipality !== undefined && isMunicipality !== "true" && isMunicipality !== "false")) fail("server_operator_invalid", 500);
   const configured = [environment.CHAIN_ID, environment.REGISTRY_ADDRESS, environment.PUBLIC_RPC_URL];
   let chain: ClientConfig["chain"] = null;
   if (configured.some((value) => value !== undefined)) {
@@ -26,7 +31,8 @@ export function createClientConfig(policy: IssuerPolicy, environment: NodeJS.Pro
     chain = { chainId: Number(chainId), registryAddress: address.toLowerCase() as `0x${string}`, rpcUrl: url.href };
   }
   return { schemaVersion: "participation_client_config_v1", municipalityId: policy.municipalityId, ags: policy.ags,
-    policyVersion: policy.policyVersion, displayName, publicBaseUrl: policy.publicBaseUrl, adapterKind: policy.adapter.kind,
+    policyVersion: policy.policyVersion, displayName, operator: { name: operatorName, isMunicipality: isMunicipality === "true" },
+    publicBaseUrl: policy.publicBaseUrl, adapterKind: policy.adapter.kind,
     basis: policy.basis, attestors: policy.adapter.kind === "in_person_attestors_v1" ? policy.adapter.attestors.map(({ attestorId, publicKey }) => ({ attestorId, publicKey })) : null, chain };
 }
 

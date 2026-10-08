@@ -115,6 +115,7 @@ must never be created for a parent domain (see
 | `DATABASE_PATH` | SQLite file for issuer and poll state |
 | `ISSUER_SIGNING_KEY_FILE` or `ISSUER_SIGNING_KEY_SEED_HEX` | Exactly one; the Ed25519 issuer key (PKCS#8 PEM or 32-byte hex seed) |
 | `DISPLAY_NAME` | Municipality name shown by the clients; required |
+| `OPERATOR_NAME`, `OPERATOR_IS_MUNICIPALITY` | Who runs the service, shown on every page; required name. Unless `OPERATOR_IS_MUNICIPALITY=true`, the clients state that it is not an offer of the municipality's administration |
 | `CHAIN_ID`, `REGISTRY_ADDRESS`, `PUBLIC_RPC_URL` | All three or none: the election registry the browser checks polls against |
 | `PORT`, `HOST` | Listen address; defaults `3000` and `127.0.0.1` |
 | `WEB_DIST_DIR` | Built web clients; default `web/dist` |

@@ -37,7 +37,7 @@ test("static clients and hashed assets have correct media types, isolation, CSP 
     await mkdir(join(directory, "assets", "crs"));
     await writeFile(join(directory, "assets", "crs", "g1.dat"), new Uint8Array([1, 2, 3]));
     await writeFile(join(directory, "assets", "membership_vote-AbCdef12.json"), "{}");
-    const config = createClientConfig(c.policy, { DISPLAY_NAME: "Beispielstadt", CHAIN_ID: "10200", REGISTRY_ADDRESS: `0x${"11".repeat(20)}`, PUBLIC_RPC_URL: "https://rpc.chiadochain.net/path" });
+    const config = createClientConfig(c.policy, { DISPLAY_NAME: "Beispielstadt", OPERATOR_NAME: "Stadtstack", CHAIN_ID: "10200", REGISTRY_ADDRESS: `0x${"11".repeat(20)}`, PUBLIC_RPC_URL: "https://rpc.chiadochain.net/path" });
     const handle = createHttpHandler({ issuer: c.issuer, clientConfig: config, staticHandlers: await createStaticHttpHandlers(directory) });
     for (const [path, contentType, cacheControl] of [["/", "text/html; charset=utf-8", "no-store"], ["/pruefung", "text/html; charset=utf-8", "no-store"],
       ["/assets/client-AbCdef12.js", "text/javascript; charset=utf-8", "public, max-age=31536000, immutable"],
@@ -97,7 +97,7 @@ test("server rejects raw and encoded traversal before URL normalization includin
     await writeFile(join(directory, "dist", "pruefung.html"), "attestor");
     await writeFile(join(directory, "dist", "assets", "app-abcdefgh.js"), "safe");
     await writeFile(join(directory, "policy.json"), JSON.stringify(policyInput()));
-    runtime = await startServer({ POLICY_PATH: join(directory, "policy.json"), DATABASE_PATH: ":memory:", DISPLAY_NAME: "Stadt", ISSUER_SIGNING_KEY_SEED_HEX: "51".repeat(32),
+    runtime = await startServer({ POLICY_PATH: join(directory, "policy.json"), DATABASE_PATH: ":memory:", DISPLAY_NAME: "Stadt", OPERATOR_NAME: "Stadtstack", ISSUER_SIGNING_KEY_SEED_HEX: "51".repeat(32),
       PORT: "0", WEB_DIST_DIR: join(directory, "dist") });
     const address = runtime.server.address(); assert.ok(address && typeof address !== "string");
     for (const path of ["/assets/../", "/assets/%2e%2e/", "/assets/%2E%2E/pruefung", "/assets/%2e%2e%2f", "/assets/..%5cindex.html", "/assets/%252e%252e/index.html", "/assets/%61pp-abcdefgh.js", "/assets/unknown.js", "/missing"]) {

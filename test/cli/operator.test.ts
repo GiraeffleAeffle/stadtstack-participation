@@ -113,7 +113,7 @@ test("complete local operator HTTP enrollment, real proof, chain lifecycle and r
   const built = await runOperator(["policy", "--registry", join(dir, "registry.json"), "--out", policyPath, "--municipality", "strausberg", "--policy-version", "pilot-v1", "--issuer", "Strausberg issuer", "--issuer-key-id", "issuer-1", "--issuer-public-key", key.issuerPublicKey, "--public-base-url", "https://eligibility.example", "--receipt-ttl-seconds", "600", "--status-max-age-seconds", "60", "--max-event-clock-skew-seconds", "300", "--allowed-agent-pubkeys", original.allowedAgentPubkeys[0]!, "--basis", join(dir, "basis.json"), "--adapter", join(dir, "adapter.json")]) as { policy: typeof original; stadtstackPolicy: unknown };
   assert.equal(built.policy.ags, "12064472");
   assert.deepEqual(built.policy.registry, { snapshotId: registry.snapshotId, digest: `sha256:${digest(registry)}` });
-  const environment = { DATABASE_PATH: join(dir, "db.sqlite"), POLICY_PATH: policyPath, ISSUER_SIGNING_KEY_FILE: keyPath, RPC_URL: rpcUrl, PUBLIC_RPC_URL: rpcUrl, DISPLAY_NAME: "Strausberg", CHAIN_ID: "31337", REGISTRY_ADDRESS: registryAddress, PORT: "0" };
+  const environment = { DATABASE_PATH: join(dir, "db.sqlite"), POLICY_PATH: policyPath, ISSUER_SIGNING_KEY_FILE: keyPath, RPC_URL: rpcUrl, PUBLIC_RPC_URL: rpcUrl, DISPLAY_NAME: "Strausberg", OPERATOR_NAME: "Stadtstack", CHAIN_ID: "31337", REGISTRY_ADDRESS: registryAddress, PORT: "0" };
   const server = await startServer(environment); t.after(() => server.close());
   const serverAddress = server.server.address(); assert(serverAddress && typeof serverAddress !== "string");
   const origin = `http://127.0.0.1:${serverAddress.port}`;

@@ -3,7 +3,7 @@ import test from "node:test";
 import { base64 } from "@scure/base";
 import { buildAttestation, buildRevocation, parseSubjectCode, signAttestation, signRevocation, subjectCode, subjectFingerprint } from "../../src/adapters/in-person-attestation.ts";
 import type { ClientConfig, EligibilityBasis } from "../../src/shared/seams.ts";
-import { authenticatedRequest, basisConditions, errorMessage } from "../../web/src/common.ts";
+import { authenticatedRequest, basisConditions, errorMessage, operatorNotice } from "../../web/src/common.ts";
 import { adopterKey, attestorKeys, municipalityId, policyVersion, setup, subject } from "../issuer/fixtures.ts";
 import { identityCommitment } from "../../src/vote/hash.ts";
 
@@ -55,9 +55,12 @@ test("browser NIP-98 builder binds POST bytes and GET without payload accepted b
 });
 
 test("client explains basis, recovery lock, duplicate vote and unknown failures without exposing server detail", () => {
-  const config: ClientConfig = { schemaVersion: "participation_client_config_v1", municipalityId, ags: "12001001", policyVersion, displayName: "Strausberg", publicBaseUrl: "https://eligibility.example", adapterKind: "in_person_attestors_v1", basis: clientBasis, attestors: null, chain: null };
+  const config: ClientConfig = { schemaVersion: "participation_client_config_v1", municipalityId, ags: "12001001", policyVersion, displayName: "Strausberg", operator: { name: "Stadtstack", isMunicipality: false }, publicBaseUrl: "https://eligibility.example", adapterKind: "in_person_attestors_v1", basis: clientBasis, attestors: null, chain: null };
   assert.deepEqual(basisConditions(config), ["Hauptwohnsitz in Strausberg", "Mindestens 16 Jahre alt"]);
   assert.deepEqual(basisConditions({ ...config, basis: { ...clientBasis, residence: "main_or_secondary_residence", minimumAgeYears: null, nationality: "eu_citizen", localityScope: ["sample-locality"] } }), ["Haupt- oder Nebenwohnsitz in Strausberg", "Staatsangehörigkeit eines EU-Landes", "Wohnsitz im zugelassenen Ortsteil: sample-locality"]);
+  // An independent operator must say it is not the administration.
+  assert.equal(operatorNotice(config), "Ein unabhängiges Angebot von Stadtstack – kein Angebot der Verwaltung von Strausberg.");
+  assert.equal(operatorNotice({ ...config, operator: { name: "Stadt Strausberg", isMunicipality: true } }), "Ein Angebot von Stadt Strausberg.");
   assert.match(errorMessage(new Error("commitment_locked")), /alten Schlüssel/u);
   assert.match(errorMessage(new Error("duplicate_nullifier")), /bereits teilgenommen/u);
   assert.match(errorMessage(new Error("chain_root_mismatch")), /keine Stimme gesendet/u);

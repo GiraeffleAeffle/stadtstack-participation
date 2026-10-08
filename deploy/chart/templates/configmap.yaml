@@ -1,6 +1,7 @@
 {{- if not .Values.policy }}{{ fail "policy must contain the complete validated public policy" }}{{ end }}
 {{- if ne .Values.policy.publicBaseUrl (printf "https://%s" .Values.host) }}{{ fail "policy publicBaseUrl must match the exact ingress host" }}{{ end }}
 {{- if ne .Values.config.CLIENT_KEY_HEADER "x-real-ip" }}{{ fail "this ingress overwrites x-real-ip; CLIENT_KEY_HEADER must match" }}{{ end }}
+{{- if not .Values.config.OPERATOR_NAME }}{{ fail "config.OPERATOR_NAME must name who runs the service" }}{{ end }}
 {{- $chainConfigured := or .Values.config.CHAIN_ID .Values.config.REGISTRY_ADDRESS .Values.config.PUBLIC_RPC_URL }}
 {{- if and $chainConfigured (not (and .Values.config.CHAIN_ID .Values.config.REGISTRY_ADDRESS .Values.config.PUBLIC_RPC_URL)) }}{{ fail "chain config must be all three non-empty values or all absent" }}{{ end }}
 apiVersion: v1

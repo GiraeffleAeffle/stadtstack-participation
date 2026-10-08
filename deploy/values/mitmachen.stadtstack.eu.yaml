@@ -7,6 +7,8 @@ policy: {}
 # Set all three only after the registry deployment; browser reads use this RPC.
 config:
   DISPLAY_NAME: Strausberg
+  OPERATOR_NAME: Stadtstack
+  OPERATOR_IS_MUNICIPALITY: "false"
   CHAIN_ID: ""
   REGISTRY_ADDRESS: ""
   PUBLIC_RPC_URL: ""

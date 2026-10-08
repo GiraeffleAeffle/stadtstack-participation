@@ -36,6 +36,7 @@ intentional: SQLite has one application writer and an RWO data volume.
 | Setting | Chart value / purpose |
 | --- | --- |
 | `DISPLAY_NAME` | `config.DISPLAY_NAME`, `Strausberg`; German client label |
+| `OPERATOR_NAME`, `OPERATOR_IS_MUNICIPALITY` | `config.*`, `Stadtstack` and `"false"`: the pages say it is an independent offer, not one of the city administration |
 | `HOST`, `PORT` | Fixed `0.0.0.0`, `3000` |
 | `DATABASE_PATH` | Fixed `/data/participation.sqlite` |
 | `POLICY_PATH` | `/run/policy/policy.json`, complete public `policy` value mounted from ConfigMap |

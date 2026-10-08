@@ -295,10 +295,13 @@ Response shapes of the client endpoints:
 
 - `GET /v1/client-config`:
   `{ schemaVersion: "participation_client_config_v1", municipalityId, ags,
-  policyVersion, displayName, publicBaseUrl, adapterKind, basis,
+  policyVersion, displayName, operator: { name, isMunicipality },
+  publicBaseUrl, adapterKind, basis,
   attestors: [{ attestorId, publicKey }] | null, chain: { chainId,
   registryAddress, rpcUrl } | null }`. `attestors` is non-null only for
   `in_person_attestors_v1`; the keys are already public in the policy.
+  Both clients show `operator`: an independent operator always states that the
+  service is not offered by the municipality's administration.
   `chain` is null until the operator configures a deployed registry.
 - `GET /v1/elections`: `{ elections: [{ electionId, state, opensAt, closesAt,
   anchorRoot, scope, metadataHash, metadata }] }`.
