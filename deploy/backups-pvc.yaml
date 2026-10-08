@@ -1,0 +1,20 @@
+# The snapshot claim lives outside the Helm release, like the namespace. hcloud-volumes binds a claim only when a Pod
+# first mounts it (here the six-hourly backup Job, which also formats the new disk), while a release waits until every
+# claim in the chart is Bound: inside the chart, every release would wait for the next backup run and roll back.
+# deploy/apply.sh applies this server-side before the release. Helm never deletes it, so it survives uninstall; the
+# class's reclaim policy is Retain, so the volume survives deleting the claim by hand.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: participation-backups
+  namespace: stadtstack-participation
+  labels:
+    app.kubernetes.io/name: stadtstack-participation
+    app.kubernetes.io/component: backup
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: hcloud-volumes
+  resources:
+    requests:
+      storage: 2Gi

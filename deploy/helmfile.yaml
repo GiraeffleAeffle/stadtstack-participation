@@ -1,0 +1,18 @@
+helmDefaults:
+  atomic: true
+  cleanupOnFail: true
+  createNamespace: false
+  historyMax: 10
+  timeout: 600
+  wait: true
+  waitForJobs: true
+
+releases:
+  - name: stadtstack-participation
+    namespace: stadtstack-participation
+    chart: ./chart
+    installed: true
+    labels:
+      app: stadtstack-participation
+    values:
+      - ./values/mitmachen.stadtstack.eu.yaml

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: participation-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "participation.helmLabels" . | nindent 4 }}
+    app.kubernetes.io/name: stadtstack-participation
+  annotations:
+    # Keep the database claim when Helm uninstalls the release.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # The class the existing claims in agentcart-demo use (1 Gi and 10 Gi there). Its reclaim policy is Retain, so the
+  # volume survives deleting this claim; delete the volume by hand when it is really no longer wanted.
+  storageClassName: {{ .Values.storage.className | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.size | quote }}

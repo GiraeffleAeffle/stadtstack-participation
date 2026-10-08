@@ -1,0 +1,40 @@
+host: mitmachen.stadtstack.eu
+image:
+  repository: ghcr.io/giraeffleaeffle/stadtstack-participation
+  digest: ""
+policy: {}
+config:
+  DISPLAY_NAME: Strausberg
+  CHAIN_ID: ""
+  REGISTRY_ADDRESS: ""
+  PUBLIC_RPC_URL: ""
+  CLIENT_KEY_HEADER: x-real-ip
+  EUDI_INTENDED_USE_ID: TEST-01
+storage:
+  className: hcloud-volumes
+  size: 2Gi
+web:
+  resources:
+    requests: {cpu: "500m", memory: 1Gi}
+    limits: {cpu: "2", memory: 4Gi}
+backup:
+  resources:
+    requests: {cpu: "20m", memory: 64Mi}
+    limits: {cpu: "500m", memory: 256Mi}
+ingress:
+  clusterIssuer: letsencrypt-prod
+  haproxySources:
+    - 10.42.0.10/32
+    - 10.42.0.11/32
+    - 10.42.0.12/32
+    - 10.244.0.0/32
+    - 10.244.1.0/32
+    - 10.244.2.0/32
+    - 10.244.0.1/32
+    - 10.244.1.1/32
+    - 10.244.2.1/32
+egress:
+  # Standard Kubernetes policies cannot select hostnames. Pin reviewed public
+  # A/AAAA addresses (/32 or /128), update deliberately when DNS changes.
+  rpcCidrs: []
+  eudiCidrs: []

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: participation-backup-script
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "participation.helmLabels" . | nindent 4 }}
+    app.kubernetes.io/name: stadtstack-participation
+    app.kubernetes.io/component: backup
+data:
+  backup.mjs: |
+    {{- .Files.Get "files/backup.mjs" | nindent 4 }}

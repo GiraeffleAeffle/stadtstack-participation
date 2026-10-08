@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stadtstack-participation
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | quote }}
+    haproxy-ingress.github.io/ssl-redirect: "true"
+    haproxy-ingress.github.io/timeout-server: "120s"
+    # Explicitly overwrite the untrusted client header, not an appended XFF list.
+    haproxy-ingress.github.io/config-backend: |
+      http-request set-header X-Real-IP %[src]
+spec:
+  ingressClassName: haproxy
+  rules:
+    - host: {{ .Values.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: stadtstack-participation, port: {name: http}}
+  tls:
+    - hosts: [{{ .Values.host | quote }}]
+      secretName: stadtstack-participation-tls

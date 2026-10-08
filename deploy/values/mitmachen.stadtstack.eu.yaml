@@ -1,0 +1,15 @@
+host: mitmachen.stadtstack.eu
+# The owner pins the successful image workflow digest here before release.
+image:
+  digest: ""
+# Put the complete CLI-validated public policy here; never any private keys.
+policy: {}
+# Set all three only after the registry deployment; browser reads use this RPC.
+config:
+  DISPLAY_NAME: Strausberg
+  CHAIN_ID: ""
+  REGISTRY_ADDRESS: ""
+  PUBLIC_RPC_URL: ""
+egress:
+  rpcCidrs: []
+  eudiCidrs: []

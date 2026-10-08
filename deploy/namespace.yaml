@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stadtstack-participation
+  labels:
+    app.kubernetes.io/part-of: stadtstack-participation
+    # The same posture as the other application namespaces (for example stadtstack-demo): the restricted profile,
+    # pinned to the cluster's Kubernetes version.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36

@@ -1,0 +1,43 @@
+name: Verify
+on:
+  push:
+  pull_request:
+permissions: {}
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: v1.4.4
+      - name: Install pinned Noir and Barretenberg
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.nargo/bin" "$HOME/.bb"
+          curl --fail --silent --show-error --location https://raw.githubusercontent.com/noir-lang/noirup/bedac8fbe6a059177c35e565f9f76db54a795976/noirup -o "$RUNNER_TEMP/noirup"
+          bash "$RUNNER_TEMP/noirup" --version 1.0.0-beta.18
+          curl --fail --silent --show-error --location https://raw.githubusercontent.com/AztecProtocol/aztec-packages/7ee33765552f65607e0adafc86ad3c2c5d7d0f1c/barretenberg/cpp/installation/bbup -o "$RUNNER_TEMP/bbup"
+          bash "$RUNNER_TEMP/bbup" --version v3.0.0-nightly.20251104
+          echo "$HOME/.nargo/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.bb" >> "$GITHUB_PATH"
+      - name: Verify installed versions
+        run: |
+          nargo --version
+          bb --version
+          forge --version
+      - run: npm ci
+      - run: npm run verify

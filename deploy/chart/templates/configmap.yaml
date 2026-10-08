@@ -1,0 +1,33 @@
+{{- if not .Values.policy }}{{ fail "policy must contain the complete validated public policy" }}{{ end }}
+{{- if ne .Values.policy.publicBaseUrl (printf "https://%s" .Values.host) }}{{ fail "policy publicBaseUrl must match the exact ingress host" }}{{ end }}
+{{- if ne .Values.config.CLIENT_KEY_HEADER "x-real-ip" }}{{ fail "this ingress overwrites x-real-ip; CLIENT_KEY_HEADER must match" }}{{ end }}
+{{- $chainConfigured := or .Values.config.CHAIN_ID .Values.config.REGISTRY_ADDRESS .Values.config.PUBLIC_RPC_URL }}
+{{- if and $chainConfigured (not (and .Values.config.CHAIN_ID .Values.config.REGISTRY_ADDRESS .Values.config.PUBLIC_RPC_URL)) }}{{ fail "chain config must be all three non-empty values or all absent" }}{{ end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: participation-config
+  namespace: {{ .Release.Namespace }}
+data:
+  HOST: "0.0.0.0"
+  PORT: "3000"
+  DATABASE_PATH: /data/participation.sqlite
+  POLICY_PATH: /run/policy/policy.json
+  ISSUER_SIGNING_KEY_FILE: /run/secrets/participation/issuer-signing-key.pem
+  WEB_DIST_DIR: /app/web/dist
+  {{- if eq (include "participation.adapterKind" .) "eudi_pid_v1" }}
+  EUDI_UNIQUENESS_KEY_FILE: /run/secrets/participation/eudi-uniqueness-key
+  {{- end }}
+  {{- range $key, $value := .Values.config }}
+  {{- if or $value (not (has $key (list "CHAIN_ID" "REGISTRY_ADDRESS" "PUBLIC_RPC_URL"))) }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: participation-policy
+  namespace: {{ .Release.Namespace }}
+data:
+  policy.json: {{ .Values.policy | toJson | quote }}

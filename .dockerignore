@@ -1,0 +1,27 @@
+# Deny by default: no local keys, databases, policy, env files or infrastructure.
+*
+!package.json
+!package-lock.json
+!tsconfig.json
+!src/
+!src/**
+!artifacts/
+!artifacts/**
+!web/
+!web/**
+web/dist
+web/node_modules
+node_modules
+**/node_modules
+.git
+**/.git
+contracts/lib
+circuits/*/target
+test
+**/*.test.ts
+**/*.test.js
+**/.env*
+**/.secrets
+**/*.pem
+**/*.key
+**/*.sqlite*

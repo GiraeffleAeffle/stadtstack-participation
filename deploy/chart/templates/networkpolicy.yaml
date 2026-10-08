@@ -1,0 +1,68 @@
+{{- if and .Values.config.PUBLIC_RPC_URL (not .Values.egress.rpcCidrs) }}{{ fail "set egress.rpcCidrs to reviewed RPC public IPs" }}{{ end }}
+{{- if and (eq (include "participation.adapterKind" .) "eudi_pid_v1") (not .Values.egress.eudiCidrs) }}{{ fail "set egress.eudiCidrs to reviewed verifier public IPs" }}{{ end }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# Only the ingress controller may reach the HTTP-01 solver.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cert-manager-http01
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: {acme.cert-manager.io/http01-solver: "true"}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: ingress-system}
+        {{- range .Values.ingress.haproxySources }}
+        - ipBlock: {cidr: {{ . | quote }}}
+        {{- end }}
+      ports: [{port: 8089, protocol: TCP}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: participation-web
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: stadtstack-participation, app.kubernetes.io/component: web}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: ingress-system}
+        # HAProxy uses host networking: same node/Flannel sources as Ledger.
+        {{- range .Values.ingress.haproxySources }}
+        - ipBlock: {cidr: {{ . | quote }}}
+        {{- end }}
+      ports: [{port: 3000, protocol: TCP}]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+    {{- $cidrs := .Values.egress.rpcCidrs }}
+    {{- if eq (include "participation.adapterKind" .) "eudi_pid_v1" }}
+    {{- $cidrs = concat $cidrs .Values.egress.eudiCidrs }}
+    {{- end }}
+    {{- if $cidrs }}
+    - to:
+        {{- range $cidrs }}
+        {{- if not (or (regexMatch "^[0-9.]+/32$" .) (regexMatch "^[a-fA-F0-9:]+/128$" .)) }}{{ fail "egress requires individual reviewed public IPs (/32 or /128), not broad networks" }}{{ end }}
+        - ipBlock: {cidr: {{ . | quote }}}
+        {{- end }}
+      ports: [{port: 443, protocol: TCP}]
+    {{- end }}
+# Backup Pods match default-deny and have no ingress/egress allowances.
