@@ -9,6 +9,9 @@ export function createVoteHttpHandlers(options: VoteHttpOptions): Readonly<{ han
   const intake = new BallotIntake(options);
   return {
     async handle(request: Request): Promise<Response | null> {
+      if (request.method === "GET" && new URL(request.url).pathname === "/v1/elections") {
+        return jsonResponse(200, { elections: options.store.listElections() });
+      }
       const match = /^\/v1\/elections\/([^/]+)(?:\/(anchor|ballots|tally))?$/u.exec(new URL(request.url).pathname);
       if (!match || (request.method !== "GET" && request.method !== "POST") || (match[2] === "ballots" ? request.method !== "POST" : request.method !== "GET")) return null;
       const ballots = match[2] === "ballots";

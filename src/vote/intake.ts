@@ -2,12 +2,12 @@ import { canonical, exact, snapshot } from "../shared/canonical.ts";
 import { fail } from "../shared/errors.ts";
 import { isBytes32 } from "../shared/ids.ts";
 import type { Clock } from "../shared/seams.ts";
+import type { Ballot } from "./ballot.ts";
 import { signalHash } from "./election.ts";
-import { parseField, proofBytes, type Hex } from "./hash.ts";
+import { parseField, proofBytes } from "./hash.ts";
 import type { VoteStore } from "./store.ts";
 import type { BallotVerifier } from "./verifier.ts";
 
-export type Ballot = Readonly<{ schemaVersion: "advisory_ballot_v1"; electionId: Hex; choiceIndex: number; nullifier: Hex; signalHash: Hex; proof: Hex }>;
 export type IntakeOptions = Readonly<{ store: VoteStore; verifier: BallotVerifier; clock: Clock; rateLimit?: Readonly<{ capacity: number; refillPerSecond: number }>; maxConcurrentVerifications?: number }>;
 
 export function validateBallot(input: unknown): Ballot {
@@ -54,7 +54,9 @@ export class BallotIntake {
     this.concurrent++;
     try {
       if (!await verifier.verify(proofBytes(ballot.proof), [election.anchorRoot, ballot.nullifier, election.scope, ballot.signalHash])) fail("proof_invalid");
-      if (!store.insertBallot(ballot)) fail("duplicate_nullifier", 409);
+      const stored = store.insertBallot(ballot);
+      if (stored === "duplicate") fail("duplicate_nullifier", 409);
+      if (stored === "closed") fail("election_not_open", 409);
     } finally {
       this.concurrent--;
     }

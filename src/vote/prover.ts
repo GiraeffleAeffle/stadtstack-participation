@@ -4,7 +4,7 @@ import { fail } from "../shared/errors.ts";
 import { electionNullifier, electionScope, signalHash } from "./election.ts";
 import { assertField, bytesHex, fieldHex, identityCommitment, type Hex } from "./hash.ts";
 import { rootFromPath, type InclusionPath } from "./merkle.ts";
-import type { Ballot } from "./intake.ts";
+import type { Ballot } from "./ballot.ts";
 
 export type VoteCircuit = ConstructorParameters<typeof Noir>[0];
 

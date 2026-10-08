@@ -4,6 +4,12 @@
 
 Accepted. [DESIGN.md](../DESIGN.md) is normative.
 
+Amended 2026-10-09: the repository now ships participant and attestor web
+clients, and `GET /v1/eligibility/me` reports fresh eligibility and enrollment
+without enrolling anything. Enrollment stays a separate, explicit action. The
+issuer also enforces one active commitment per adapter evidence (DESIGN.md,
+"Storage"). The decision below is otherwise unchanged.
+
 ## Context
 
 Being eligible does not automatically put a citizen's voting identity into an

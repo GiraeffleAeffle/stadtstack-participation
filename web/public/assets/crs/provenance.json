@@ -1,0 +1,8 @@
+{
+  "circuit": "artifacts/membership_vote.json",
+  "backend": "@aztec/bb.js@3.0.0-nightly.20251104",
+  "subgroupSize": 2048,
+  "numPoints": 2049,
+  "g1": { "source": "https://crs.aztec.network/g1.dat", "range": "bytes=0-131135", "bytes": 131136, "sha256": "137d54b2868b3b7a26ded9804494ca0b6b94b31276dcd86e90ee7c390669d3f6" },
+  "g2": { "source": "https://crs.aztec.network/g2.dat", "bytes": 128, "sha256": "01797bfc4de5a96f0e516a9ea4537d18786dc30cb991aca4274c95822b69c32f" }
+}

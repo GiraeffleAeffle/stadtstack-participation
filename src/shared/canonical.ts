@@ -40,7 +40,14 @@ export const DEFAULT_SNAPSHOT_LIMITS: SnapshotLimits = Object.freeze({
 // Node exposes proxy detection without an import, so this module also loads in
 // browsers. There it is unavailable, and the copy-once snapshot below already
 // prevents a proxy from changing values between validation and use.
-const isProxy = typeof process === "undefined" ? undefined : process.getBuiltinModule("node:util").types.isProxy;
+type NodeProcess = Readonly<{ getBuiltinModule(id: "node:util"): Readonly<{ types: Readonly<{ isProxy(value: unknown): boolean }> }> }>;
+
+function isNodeProcess(value: unknown): value is NodeProcess {
+  return typeof value === "object" && value !== null && "getBuiltinModule" in value && typeof value.getBuiltinModule === "function";
+}
+
+const runtimeProcess: unknown = Reflect.get(globalThis, "process");
+const isProxy = isNodeProcess(runtimeProcess) ? runtimeProcess.getBuiltinModule("node:util").types.isProxy : undefined;
 
 /**
  * Copy untrusted JSON-shaped data into frozen plain objects within fixed

@@ -3,14 +3,15 @@ import { fail } from "../shared/errors.ts";
 import { isAgs, isHex64, isHttpsOrigin, isMunicipalityId, isPolicyVersion, KEY_ID, SLUG } from "../shared/ids.ts";
 import { validateInPersonAttestorsConfig, type InPersonAttestorsConfig } from "../adapters/in-person-attestors.ts";
 import { validateRoebelCitizenNftConfig, type RoebelCitizenNftConfig } from "../adapters/roebel-citizen-nft.ts";
+import { validateEudiPidConfig, type EudiPidConfig } from "../adapters/eudi-pid.ts";
+import type { EligibilityBasis } from "../shared/seams.ts";
 
-export type EligibilityBasis = Readonly<{ residence: "main_residence" | "main_or_secondary_residence"; minimumAgeYears: number | null; nationality: "any" | "eu_citizen" | "german_citizen"; localityScope: readonly string[] | null }>;
 export type IssuerPolicy = Readonly<{
   schemaVersion: "municipal_eligibility_issuer_policy_v1"; municipalityId: string; ags: string; policyVersion: string;
   registry: Readonly<{ snapshotId: string; digest: string }> | null;
   issuer: string; issuerKeyId: string; issuerPublicKey: string; publicBaseUrl: string; statusBaseUrl: string; acceptanceBaseUrl: string;
   receiptTtlSeconds: number; statusMaxAgeSeconds: number; maxEventClockSkewSeconds: number; allowedAgentPubkeys: readonly string[];
-  basis: EligibilityBasis; adapter: InPersonAttestorsConfig | RoebelCitizenNftConfig;
+  basis: EligibilityBasis; adapter: InPersonAttestorsConfig | RoebelCitizenNftConfig | EudiPidConfig;
 }>;
 
 export function parseIssuerPolicy(input: unknown): IssuerPolicy {
@@ -40,6 +41,7 @@ export function parseIssuerPolicy(input: unknown): IssuerPolicy {
     const adapter = validateInPersonAttestorsConfig(p.adapter);
     if (adapter.attestors.some((a) => a.publicKey === p.issuerPublicKey)) fail("issuer_attestor_key_collision");
   } else if (adapterKind === "roebel_citizen_nft_v1") validateRoebelCitizenNftConfig(p.adapter);
+  else if (adapterKind === "eudi_pid_v1") validateEudiPidConfig(p.adapter, basis as EligibilityBasis);
   else fail("adapter_unknown");
   return p as IssuerPolicy;
 }

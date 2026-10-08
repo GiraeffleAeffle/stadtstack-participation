@@ -11,3 +11,8 @@ bytecode_hash = "none"
 allow_paths = ["../node_modules/@openzeppelin/contracts"]
 remappings = ["@openzeppelin/contracts/=../node_modules/@openzeppelin/contracts/"]
 fs_permissions = [{ access = "read", path = "./test/fixtures" }]
+
+[lint]
+# Solar cannot resolve OpenZeppelin's relative imports through the ../node_modules
+# remapping; style linting is not part of verification.
+lint_on_build = false

@@ -3,8 +3,9 @@
 ## Scope and security claims
 
 [DESIGN.md](DESIGN.md) is normative. This model covers the eligibility issuer,
-its adapters, the anonymous advisory participation lane, and the election
-registry. It describes required controls and their limits, not evidence of a
+its adapters, the anonymous advisory participation lane, the election
+registry, and the participant and attestor web clients served by the same
+host. It describes required controls and their limits, not evidence of a
 completed security audit or of safe infrastructure configuration.
 
 The lane proves knowledge of a secret behind a commitment in a frozen anchor
@@ -18,13 +19,16 @@ inclusion, or create binding municipal decisions. Eligibility receipts carry
 
 - Citizen PRF output and derived secret: disclosure can expose the
   person-to-ballot link across the municipality's polls and enable impersonation.
-- Nostr subject keys, attestor signing keys, issuer Ed25519 keys, wallet keys,
-  and registry admin/operator authority.
+- The passkeys themselves, bound to the service's exact host: any origin that
+  can request assertions for that relying party can derive every secret.
+- Nostr subject keys, attestor signing keys, issuer Ed25519 keys, the EUDI
+  evidence key, wallet keys, and registry admin/operator authority.
 - Integrity and freshness of policy, attestations, revocations, adapter evidence,
   eligibility receipts/status, and adoption acceptance records.
-- Confidentiality of issuer-private subject-to-commitment mappings and, for the
-  citizen-NFT bridge, subject-to-wallet mappings. Public keys and wallet
-  addresses are pseudonymous, not necessarily anonymous.
+- Confidentiality of issuer-private subject-to-commitment mappings and of
+  evidence references (wallet addresses; keyed hashes of EUDI names and birth
+  dates, which the key holder can test against guessed identities). Public keys
+  and wallet addresses are pseudonymous, not necessarily anonymous.
 - Integrity and availability of enrollments, frozen anchors, metadata, election
   windows/scopes, accepted ballots, and canonical tallies.
 - Separation of public audit artifacts from authenticated enrollment and network
@@ -32,18 +36,22 @@ inclusion, or create binding municipal decisions. Eligibility receipts carry
 - Circuit/verifier artifacts, their hashes, dependency pins, and reproducible
   verification semantics.
 
-No names, addresses, birth dates, or document numbers belong in this module.
-Document-kind labels are not document contents. Avoiding those fields does not
-make pseudonymous associations harmless or remove data-protection obligations.
+No names, addresses, birth dates, or document numbers are stored by this
+module. Document-kind labels are not document contents. The EUDI adapter
+receives names, birth date, postal code and locality, decides and computes its
+keyed hash in memory, and stores only the decision and that hash. Avoiding
+those fields does not make pseudonymous associations harmless or remove
+data-protection obligations.
 
 ## Actors and capabilities
 
 | Actor | Capabilities and potential abuse |
 | --- | --- |
 | Issuer operator | Configures policy and adapters, holds signing authority, and can access private issuer records. Can misstate eligibility, disclose mappings, or refuse service. |
-| Attestors | Sign observed eligibility evidence and revocations. Can make mistakes, lose keys, collude, or attest multiple subject keys for one person. |
+| Attestors | Sign observed eligibility evidence and revocations. Can make mistakes, lose keys, collude, or attest multiple subject keys for one person. Can be shown a subject code that belongs to someone other than the person in front of them. |
+| EUDI verifier backend | Validates wallet presentations (issuer signature, holder binding, status) and returns disclosed claims. A dishonest or misconfigured backend can report claims that no wallet presented. |
 | Election operator | Chooses the electorate snapshot, metadata, and window, opens/closes polls, and publishes results. Can add controlled commitments, exclude eligible citizens, or withhold publication. |
-| Server | Receives authenticated enrollment and plaintext anonymous ballots; sees live connections and transient limiter keys. A compromised server can correlate traffic, censor, omit accepted ballots, or leak records. |
+| Server | Receives authenticated enrollment and plaintext anonymous ballots; sees live connections and transient limiter keys; delivers the web clients. A compromised server can correlate traffic, censor, omit accepted ballots, leak records, or ship client code that exfiltrates secrets. |
 | Network observer | Observes connections, sizes, timing, and service use. A TLS endpoint or compromised proxy can also inspect ballot payloads. |
 | Other citizens | See public policy, anchors, and tallies; can submit malformed proofs, race duplicate ballots, exhaust verification resources, share secrets, or seek multiple enrollments. |
 | Coerced voter | Can be forced to vote under observation, reveal a secret, surrender a credential, or cooperate in proving a choice. There is no protocol escape through revoting. |
@@ -75,6 +83,42 @@ active-status interface, and wallet-signature validation. It verifies a defined
 status, not independent identity proofing. The issuer knows both the subject key
 and wallet from the evidence and private evidence reference. That relationship
 must not appear in public receipts, anchors, ballots, or tallies.
+
+Enrollment is unique per piece of evidence as well as per subject key: one
+wallet, or one person as identified by the EUDI keyed hash, holds one active
+enrollment and adopts a given suggestion under one subject key only. This stops
+one credential holder from voting through several passkeys. It does not stop
+one person with two credentials: two qualifying wallets, a changed name in a
+re-issued PID, or two subject keys each attested in person. Two residents with
+identical names and birth date collide, and the later enrollment supersedes
+the earlier one. In-person attestation has no evidence beyond the subject key,
+so duplicate subjects there are prevented only by attestor diligence.
+
+The EUDI adapter trusts the configured verifier backend for issuer-signature,
+holder-binding and revocation checks; it checks credential type, the required
+claims, transaction binding and expiry itself. The EU hosted test verifier is
+for tests only. [ADR 0006](adr/0006-eudi-pid-adapter.md) states what a
+production deployment needs first: its own verifier instance and relying-party
+registration. A PID address proves the registered main residence on the day
+of presentation; moving away is not seen until the enrollment expires.
+
+### Client delivery and origin
+
+The web clients come from the same host as the API, and passkeys are bound to
+that exact host. The PRF salts are public, so any page that can obtain an
+assertion for the relying party derives the same voting secret: the host must
+not serve other applications, and passkeys must never be created for a parent
+domain. A Content-Security-Policy restricted to the own origin (plus the
+configured RPC origin) blocks third-party scripts and exfiltration through
+injected markup; it does not constrain the operator, who controls both the
+policy and the code. A server operator can therefore ship a client that leaks
+secrets or changes choices. Browsers do not verify that the delivered assets
+match a reviewed release; that needs published build hashes and independent
+checks.
+
+The attestor compares a fingerprint of the scanned subject code with the
+fingerprint on the person's screen. That catches a swapped or mistyped code,
+not a person who knowingly presents someone else's code.
 
 ### Ballot privacy
 
@@ -138,9 +182,11 @@ implementation and deployment actually preserve them.
 | Threat | Mitigation in the design/code contract | Residual risk |
 | --- | --- | --- |
 | Secret theft or cross-municipality linkage | PRF-only derivation, required user verification, municipality-specific input/HKDF, non-zero field secret, no stored-secret fallback. | Malicious clients, credential compromise, loss of credential, and external subject-key reuse. Unsupported PRF fails closed and excludes that device. |
-| Forged or replayed enrollment/receipt requests | NIP-98 exact URL/method/body binding, clock-skew checks, and single-use event IDs; one active commitment per municipality/subject. | Stolen subject keys, issuer compromise, or multiple subject keys approved for one person. |
+| Forged or replayed enrollment/receipt requests | NIP-98 exact URL/method/body binding, clock-skew checks, and single-use event IDs; one active commitment per municipality/subject and per municipality/evidence; one subject per suggestion and evidence. | Stolen subject keys, issuer compromise, or one person holding several qualifying credentials or several attested subject keys. |
 | Dishonest/expired attestation | Distinct attestor threshold, key-validity checks, configured no-self-attestation, exact policy basis, bounded attestation window, K-fresh renewal, and distinct-attestor revocation threshold. Issuer/attestor key equality is rejected. | Collusion, falsely declared key ownership, operational mistakes, and malicious configuration. |
 | Wallet-evidence substitution | Fixed EIP-191 text binds municipality, policy, subject, purpose, request ID and time; EOA/ERC-1271/ERC-6492 validation, expected contract code hash, configured block view, and active-status recheck. | Dishonest RPC, chain changes, contract/interface assumptions, wallet compromise, or multiple-wallet eligibility. |
+| Forged or replayed EUDI presentations | Verifier transaction created per subject with a fresh nonce, polled and consumed only by that subject, single-use within a TTL; allowed credential types; fixed requested claims; required holder binding; person-level keyed evidence reference. | Dishonest or compromised verifier backend, wallet compromise, name changes, identical name and birth date, and address changes during validity. |
+| Malicious or substituted client code | One dedicated host per service, host-bound passkeys without a parent-domain relying party, same-origin CSP without third-party scripts, no stored secrets. | The operator or a compromised server can still deliver malicious code; dependency compromise; extensions. |
 | Stale or substituted civic evidence | Short receipt TTL, fresh adapter-backed signed status, echoed status nonce and fixed audience, canonical Ed25519 receipt proofs, exact Stadtstack wire shapes. | A trusted issuer can sign false evidence; live status depends on adapter and service availability. |
 | Mutable electorate or replacement races | Depth-16 immutable chain root, adapter recheck at anchoring, unique numerically sorted leaves, subject enrollment uniqueness, and replacement lock for current commitments in open anchors. | Operator composition fraud, snapshot exclusions, later revocation not changing the electorate, and locking defects. |
 | Ballot alteration or duplicate acceptance | Choice/signal checks; proof inputs pinned to root/nullifier/scope/signal; scoped nullifier derivation; proof verification before insertion; database `UNIQUE(election_id, nullifier)` resolves races. | Valid ballots for dishonest anchor leaves; malicious clients; cryptographic or verifier defects. Uniqueness is per secret, not per human. |
@@ -161,12 +207,15 @@ Before making real-world anonymity or eligibility claims, review at least:
 2. **Client boundary:** PRF creation/evaluation behavior across authenticators,
    required user verification, no fallback or persistent secret/proof telemetry,
    metadata/root/scope/window checks against the intended chain, whole-anchor
-   witness construction, and omission of cookies and redirects on ballot intake.
+   witness construction, omission of cookies and redirects on ballot intake,
+   relying-party/host binding of passkeys, the served CSP and headers, and
+   reproducibility of the delivered web assets.
 3. **Issuer and adapters:** canonical signing domains and Stadtstack verifier
    interoperability, status nonce/audience/freshness, NIP-98 replay handling,
    policy isolation, threshold/renewal/revocation edge cases, private evidence
-   storage, and all wallet-signature forms including counterfactual validation
-   and adversarial RPC responses.
+   storage, evidence uniqueness under concurrency, all wallet-signature forms
+   including counterfactual validation and adversarial RPC responses, and the
+   EUDI verifier trust boundary, transaction binding and claim handling.
 4. **Concurrency and lifecycle:** uniqueness under concurrent submissions,
    replacement versus anchor creation/opening, immutable snapshots, exact
    half-open voting windows, chain/mirror disagreement, closing restrictions,

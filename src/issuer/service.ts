@@ -10,8 +10,14 @@ import { IssuerStore } from "./store.ts";
 
 const FIELD_MODULUS = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
 type ReceiptRow = { receipt_json: string; suggestion_json: string; evidence_ref: string };
-type EnrollmentRow = { id: number; municipality_id: string; policy_version: string; subject_pubkey: string; commitment: `0x${string}`; evidence_ref: string };
+type EnrollmentRow = { id: number; municipality_id: string; policy_version: string; subject_pubkey: string; commitment: `0x${string}`; evidence_ref: string; enrolled_at: number };
 type SuggestionEvidenceRow = { subject_pubkey: string };
+
+export type EligibilityMe = Readonly<{
+  subjectPubkey: string;
+  eligibility: Readonly<{ state: "active"; effectiveAt: number; validUntil: number | null }> | Readonly<{ state: "inactive"; reason: string }>;
+  enrollment: Readonly<{ identityCommitment: `0x${string}`; enrolledAt: number }> | null;
+}>;
 
 export class IssuerService implements EligibleCommitmentSource {
   readonly policy: IssuerPolicy;
@@ -34,6 +40,22 @@ export class IssuerService implements EligibleCommitmentSource {
       now: this.clock(), maxSkewSeconds: this.policy.maxEventClockSkewSeconds });
     this.store.consumeAuth(identity.eventId);
     return identity;
+  }
+
+  async eligibilityMe(identity: Nip98Identity, signal: AbortSignal): Promise<EligibilityMe> {
+    const now = this.clock();
+    const row = this.store.db.prepare("SELECT * FROM issuer_enrollments WHERE municipality_id=? AND subject_pubkey=? AND active=1")
+      .get(this.policy.municipalityId, identity.pubkey) as EnrollmentRow | undefined;
+    const input = { municipalityId: this.policy.municipalityId, policyVersion: this.policy.policyVersion, subjectPubkey: identity.pubkey, now, signal };
+    const decision = row ? await this.adapter.recheck({ ...input, evidenceRef: row.evidence_ref }) :
+      this.adapter.preview ? await this.adapter.preview(input) : { state: "inactive", reason: "evidence_required" } as const;
+    let eligibility: EligibilityMe["eligibility"];
+    if (decision.state === "inactive") eligibility = { state: "inactive", reason: decision.reason };
+    else if (!isSafeNonNegativeInteger(decision.effectiveAt) || decision.effectiveAt > now ||
+      (decision.validUntil !== null && (!isSafeNonNegativeInteger(decision.validUntil) || decision.validUntil <= now))) {
+      eligibility = { state: "inactive", reason: "expired" };
+    } else eligibility = { state: "active", effectiveAt: decision.effectiveAt, validUntil: decision.validUntil };
+    return { subjectPubkey: identity.pubkey, eligibility, enrollment: row ? { identityCommitment: row.commitment, enrolledAt: row.enrolled_at } : null };
   }
 
   async issueReceipt(input: unknown, identity: Nip98Identity, signal: AbortSignal): Promise<EligibilityReceipt> {

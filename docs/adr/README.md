@@ -12,6 +12,7 @@ not expand the legal scope or promise deployment-level anonymity. See also the
 | [0003](0003-semaphore-style-advisory-lane.md) | Use domain-separated membership proofs, scoped nullifiers, and a reproducible public tally; MACI is a comparison only. |
 | [0004](0004-voting-enrollment-auto-activation.md) | Offer explicit activation after eligibility, using PRF-only citizen secrets and signed enrollment. |
 | [0005](0005-voting-identity-rebinding.md) | Permit replacement only when the current commitment is absent from all affected open anchors. |
+| [0006](0006-eudi-pid-adapter.md) | Keep EUDI test-verifier PID processing transient, using a keyed person-data reference across rotating holder keys; prefer German online eID for production investigation. |
 
 ## Adaptation notes
 

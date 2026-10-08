@@ -29,6 +29,7 @@ import { fail } from "../shared/errors.ts";
 import { isHex64, SLUG } from "../shared/ids.ts";
 import type { EligibilityAdapter, EligibilityCheckInput, EligibilityDecision, EligibilityRecheckInput } from "../shared/seams.ts";
 import { migrate } from "../issuer/store.ts";
+import { ATTESTATION_SCHEMA, REVOCATION_SCHEMA, ATTESTATION_DOMAIN, REVOCATION_DOMAIN, DOCUMENT_KIND_PATTERN } from "./in-person-attestation.ts";
 
 export type Attestor = Readonly<{ attestorId: string; publicKey: string; ownSubjectPubkeys: readonly string[]; validFrom: number; validUntil: number }>;
 export type InPersonAttestorsConfig = Readonly<{ kind: "in_person_attestors_v1"; attestors: readonly Attestor[]; requiredAttestations: number; attestationWindowSeconds: number; validitySeconds: number; revocationThreshold: number }>;
@@ -83,14 +84,14 @@ export class InPersonAttestorsAdapter implements EligibilityAdapter {
       ["schemaVersion", "municipalityId", "policyVersion", "subjectPubkey", "attestorId", "attestedAt", "basis", "documentKinds"], "attestation_invalid");
     const at = revocation ? core.revokedAt : core.attestedAt;
     const attestor = this.config.attestors.find((a) => a.attestorId === core.attestorId);
-    if (!attestor || core.schemaVersion !== (revocation ? "in_person_residency_revocation_v1" : "in_person_residency_attestation_v1") ||
+    if (!attestor || core.schemaVersion !== (revocation ? REVOCATION_SCHEMA : ATTESTATION_SCHEMA) ||
       core.municipalityId !== this.municipalityId || core.policyVersion !== this.policyVersion || !isHex64(core.subjectPubkey) ||
       !isSafeNonNegativeInteger(at) || at > now || at < attestor.validFrom || at >= attestor.validUntil ||
       attestor.ownSubjectPubkeys.includes(core.subjectPubkey)) fail("attestation_invalid");
     if (!revocation && (canonical(core.basis) !== canonical(this.basis) || !Array.isArray(core.documentKinds) || !core.documentKinds.length ||
-      core.documentKinds.length > 16 || core.documentKinds.some((kind) => typeof kind !== "string" || !/^[a-z][a-z0-9_]{1,63}$/u.test(kind)) ||
+      core.documentKinds.length > 16 || core.documentKinds.some((kind) => typeof kind !== "string" || !DOCUMENT_KIND_PATTERN.test(kind)) ||
       new Set(core.documentKinds).size !== core.documentKinds.length)) fail("attestation_invalid");
-    if (!verifyCanonical(attestor.publicKey, { domain: revocation ? "in-person-residency-revocation/v1" : "in-person-residency-attestation/v1", core }, record.signature)) fail("attestation_signature_invalid", 401);
+    if (!verifyCanonical(attestor.publicKey, { domain: revocation ? REVOCATION_DOMAIN : ATTESTATION_DOMAIN, core }, record.signature)) fail("attestation_signature_invalid", 401);
     const recordId = digest(record);
     this.db.prepare(`INSERT OR IGNORE INTO issuer_attestations VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
       recordId, this.municipalityId, this.policyVersion, core.subjectPubkey, attestor.attestorId, at, revocation ? "revocation" : "attestation", canonical(record));
@@ -98,6 +99,11 @@ export class InPersonAttestorsAdapter implements EligibilityAdapter {
   }
 
   async check(input: EligibilityCheckInput): Promise<EligibilityDecision> {
+    input.signal.throwIfAborted();
+    return this.evaluate(input.municipalityId, input.policyVersion, input.subjectPubkey, input.now);
+  }
+
+  async preview(input: Readonly<{ municipalityId: string; policyVersion: string; subjectPubkey: string; now: number; signal: AbortSignal }>): Promise<EligibilityDecision> {
     input.signal.throwIfAborted();
     return this.evaluate(input.municipalityId, input.policyVersion, input.subjectPubkey, input.now);
   }

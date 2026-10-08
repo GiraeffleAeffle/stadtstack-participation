@@ -1,3 +1,15 @@
+/** The eligibility basis a policy publishes and attestors confirm in person. */
+export type EligibilityBasis = Readonly<{ residence: "main_residence" | "main_or_secondary_residence"; minimumAgeYears: number | null; nationality: "any" | "eu_citizen" | "german_citizen"; localityScope: readonly string[] | null }>;
+
+/** Body of `GET /v1/client-config`. */
+export type ClientConfig = Readonly<{
+  schemaVersion: "participation_client_config_v1";
+  municipalityId: string; ags: string; policyVersion: string; displayName: string; publicBaseUrl: string;
+  adapterKind: string; basis: EligibilityBasis;
+  attestors: readonly Readonly<{ attestorId: string; publicKey: string }>[] | null;
+  chain: Readonly<{ chainId: number; registryAddress: `0x${string}`; rpcUrl: string }> | null;
+}>;
+
 /**
  * Interfaces between the issuer, the eligibility adapters and the advisory
  * participation lane. Each side may be replaced without touching the other.

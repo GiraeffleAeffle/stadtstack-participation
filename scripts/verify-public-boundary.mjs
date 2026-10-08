@@ -28,7 +28,8 @@ const publicDevKeys = new Set([
 ]);
 
 const contentRules = [
-  [/-----BEGIN [A-Z ]*PRIVATE KEY-----/u, "pem-private-key"],
+  // A key has a base64 body; code that only names the header (parsers, checks) does not.
+  [/-----BEGIN [A-Z ]*PRIVATE KEY-----\r?\n[A-Za-z0-9+/=]{40,}/u, "pem-private-key"],
   // Base64 of "-----BEGIN", assembled so this file does not match itself.
   [new RegExp(["LS0tLS1", "CRUdJTi"].join(""), "u"), "base64-pem"],
   [/sk-(?:ant-|proj-|or-)[A-Za-z0-9_-]{20,}/u, "llm-api-key"],
@@ -42,10 +43,12 @@ const contentRules = [
   [/postgres(?:ql)?:\/\/[^:/\s]+:[^@/\s]{6,}@/u, "database-url-with-password"],
   [/\/Users\/[A-Za-z]|\/home\/[a-z][a-z0-9_-]*\//u, "local-path"],
   [/agentcart\.eu|\.svc\.cluster\.local|vercel\.app|ts\.net\b/u, "operations-host"],
-  [/[A-Za-z0-9._%+-]+@(?!users\.noreply\.github\.com|example\.(?:org|com|net))[A-Za-z0-9.-]+\.[a-z]{2,}/u, "email-address"],
+  // Reserved documentation names (RFC 2606) are not addresses.
+  [/[A-Za-z0-9._%+-]+@(?!users\.noreply\.github\.com|example\.(?:org|com|net)|[A-Za-z0-9.-]*\.(?:example|test|invalid|localhost)\b)[A-Za-z0-9.-]+\.[a-z]{2,}/u, "email-address"],
 ];
 const hexKeyAssignment = /(?:PRIVATE_KEY|PRIVKEY|SECRET_KEY|SEED|MNEMONIC)[^\n]{0,24}?(?:0x)?([0-9a-fA-F]{64})/gu;
-const binaryAllowed = [/^artifacts\/[^/]+\.vk$/u];
+// Verification key, and the public BN254 CRS prefix (provenance.json pins source and hashes).
+const binaryAllowed = [/^artifacts\/[^/]+\.vk$/u, /^web\/public\/assets\/crs\/g[12]\.dat$/u];
 const maxBytes = 1_048_576;
 
 const findings = [];

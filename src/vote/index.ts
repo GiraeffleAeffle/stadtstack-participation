@@ -5,7 +5,8 @@ export { participantPrfSalts, attestorPrfSalt, secretFromPrf, nostrSecretKeyFrom
 export { buildAnchor, type ElectionAnchor } from "./anchor.ts";
 export { VoteProver, type VoteCircuit } from "./prover.ts";
 export { VoteVerifier, type BallotVerifier } from "./verifier.ts";
-export { BallotIntake, validateBallot, type Ballot, type IntakeOptions } from "./intake.ts";
+export type { Ballot } from "./ballot.ts";
+export { BallotIntake, validateBallot, type IntakeOptions } from "./intake.ts";
 export { VoteStore, migrate } from "./store.ts";
 export { buildTally, tallyHash, type Tally } from "./tally.ts";
 export { projectParticipationResult, type ParticipationResult, type RepresentationAudit, type ResultContext } from "./result.ts";

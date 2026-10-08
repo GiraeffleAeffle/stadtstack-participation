@@ -1,5 +1,5 @@
 import { fail } from "../shared/errors.ts";
-import type { Ballot } from "./intake.ts";
+import type { Ballot } from "./ballot.ts";
 
 /** The transport never attaches ambient cookies, follows redirects or caches ballots. */
 export async function submitBallot(baseUrl: string, ballot: Ballot, fetcher: typeof fetch = fetch): Promise<Readonly<{ ok: true }> | Readonly<{ ok: false; code: string }>> {

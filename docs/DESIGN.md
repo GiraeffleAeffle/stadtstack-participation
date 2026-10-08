@@ -369,14 +369,19 @@ address, kept private by the issuer.
 #### `eudi_pid_v1`
 
 Eligibility from an EU Digital Identity Wallet presentation (OpenID4VP) of
-the person identification data (PID). Design and limits:
-[ADR 0006](adr/0006-eudi-pid-adapter.md). The adapter requests only
-`address.postal_code`, `address.locality` and the age predicate
-`age_equal_or_over.<minimumAgeYears>` (test PIDs without age claims: the birth
-date, which is checked and discarded). It never requests names or the street.
-The PID carries no municipality key, so the policy lists the accepted
-`(postal code, locality)` pairs of the municipality. `evidenceRef` is a keyed
-hash of the credential's holder key, so one credential holds one enrollment.
+the person identification data (PID); test-only for now. Design and limits:
+[ADR 0006](adr/0006-eudi-pid-adapter.md).
+
+The adapter requests exactly `family_name`, `given_name`, `birthdate`,
+`address.postal_code` and `address.locality`. The PID carries no municipality
+key, so the policy lists the accepted `(postal code, locality)` pairs. Age is
+computed from the birth date.
+
+Wallets present one-time credentials with a fresh holder key each time, so a
+holder key cannot identify a person across presentations. `evidenceRef` is
+therefore a keyed hash (HMAC-SHA256 under an operator-held key separate from the
+issuer key) of the normalized names and birth date. Names, birth date and
+address are used in memory and never stored, logged or returned.
 
 ## Clients and hosting
 
@@ -404,13 +409,22 @@ origin plus the configured RPC origin (`script-src 'self' 'wasm-unsafe-eval'`,
 `X-Content-Type-Options: nosniff` and a `Permissions-Policy` that allows only
 camera and passkeys for the own origin.
 
+The clients fetch API paths relative to their own origin and sign NIP-98 for
+`publicBaseUrl` plus the path. Only passkey credential ids are kept in browser
+storage. Proofs are computed in a module worker from same-origin assets: the
+Noir and Barretenberg WASM, the circuit, and the BN254 CRS prefix the circuit
+needs (`web/public/assets/crs`, 2^11 + 1 points; `provenance.json` pins source
+and hashes). Changing the circuit size requires replacing that prefix.
+
 ## Storage
 
 `node:sqlite`, one database. Each module creates its own tables through an
 idempotent `migrate(db)`. Uniqueness that matters for safety is enforced by
 the database:
 
-- one ballot per `(election_id, nullifier)`;
+- one ballot per `(election_id, nullifier)`, stored only while the election is
+  open and untallied; storing a tally requires that it counts exactly the
+  stored ballots and closes intake, so an acknowledged ballot is always counted;
 - one active enrollment per `(municipality_id, subject_pubkey)` and per
   `(municipality_id, evidence_ref)`. A new subject key presenting the same
   evidence (e.g. after a lost passkey) supersedes the old enrollment unless an

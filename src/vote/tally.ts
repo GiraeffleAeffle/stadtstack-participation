@@ -3,7 +3,7 @@ import { fail } from "../shared/errors.ts";
 import { isHex64 } from "../shared/ids.ts";
 import { signalHash } from "./election.ts";
 import { parseField, type Hex } from "./hash.ts";
-import type { Ballot } from "./intake.ts";
+import type { Ballot } from "./ballot.ts";
 import { assertElectionMatchesChain, type ChainElection, type ElectionMirror } from "./registry-client.ts";
 
 export type Tally = Readonly<{

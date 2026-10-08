@@ -1,13 +1,16 @@
 import { createServer, type Server } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
+import type { DatabaseSync } from "node:sqlite";
 import { InPersonAttestorsAdapter } from "./adapters/in-person-attestors.ts";
 import { RoebelCitizenNftAdapter } from "./adapters/roebel-citizen-nft.ts";
-import { createHttpHandler } from "./http.ts";
-import { parseIssuerPolicy } from "./issuer/policy.ts";
+import { EudiPidAdapter } from "./adapters/eudi-pid.ts";
+import { createEudiHttpHandlers } from "./adapters/eudi-http.ts";
+import { createClientConfig, createHttpHandler, createStaticHttpHandlers, setSecurityHeaders } from "./http.ts";
+import { parseIssuerPolicy, type IssuerPolicy } from "./issuer/policy.ts";
 import { IssuerService } from "./issuer/service.ts";
 import { IssuerStore } from "./issuer/store.ts";
 import { openDatabase } from "./shared/db.ts";
@@ -17,14 +20,35 @@ import { errorResponse } from "./shared/http.ts";
 import { VoteStore } from "./vote/store.ts";
 import { createVoteHttpHandlers } from "./vote/http.ts";
 import { VoteVerifier } from "./vote/verifier.ts";
+import type { EligibilityAdapter } from "./shared/seams.ts";
 
 /** A listening server and the shutdown that also releases the verifier and database. */
 export type ServerRuntime = Readonly<{ server: Server; close(): Promise<void> }>;
+
+/** The operator and server use precisely the same adapter runtime configuration. */
+export async function createRuntimeAdapter(policy: IssuerPolicy, db: DatabaseSync, environment: NodeJS.ProcessEnv): Promise<EligibilityAdapter> {
+  if (policy.adapter.kind === "in_person_attestors_v1") {
+    return new InPersonAttestorsAdapter(policy.adapter, { db, municipalityId: policy.municipalityId, policyVersion: policy.policyVersion, basis: policy.basis });
+  }
+  if (policy.adapter.kind === "roebel_citizen_nft_v1") {
+    if (!environment.ROEBEL_RPC_URL) fail("server_configuration_invalid", 500);
+    return new RoebelCitizenNftAdapter(policy.adapter, { rpcUrl: environment.ROEBEL_RPC_URL });
+  }
+  if (!environment.EUDI_UNIQUENESS_KEY_FILE) fail("server_configuration_invalid", 500);
+  if (environment.ISSUER_SIGNING_KEY_FILE &&
+    await realpath(environment.EUDI_UNIQUENESS_KEY_FILE) === await realpath(environment.ISSUER_SIGNING_KEY_FILE)) fail("eudi_uniqueness_key_invalid", 500);
+  const uniquenessKey = await readFile(environment.EUDI_UNIQUENESS_KEY_FILE);
+  if (uniquenessKey.length < 32) fail("eudi_uniqueness_key_invalid", 500);
+  return new EudiPidAdapter(policy.adapter, { db, municipalityId: policy.municipalityId, policyVersion: policy.policyVersion,
+    basis: policy.basis, uniquenessKey, intendedUseId: environment.EUDI_INTENDED_USE_ID });
+}
 
 /** Runtime reads secret references; keys never enter policy or database records. */
 export async function startServer(environment: NodeJS.ProcessEnv = process.env): Promise<ServerRuntime> {
   if (!environment.POLICY_PATH || !environment.DATABASE_PATH || Boolean(environment.ISSUER_SIGNING_KEY_FILE) === Boolean(environment.ISSUER_SIGNING_KEY_SEED_HEX)) fail("server_configuration_invalid", 500);
   const policy = parseIssuerPolicy(JSON.parse(await readFile(environment.POLICY_PATH, "utf8")));
+  const clientConfig = createClientConfig(policy, environment);
+  if (policy.adapter.kind === "eudi_pid_v1" && !environment.EUDI_UNIQUENESS_KEY_FILE) fail("server_configuration_invalid", 500);
   const signingKey = environment.ISSUER_SIGNING_KEY_FILE ? loadEd25519PrivateKey({ pem: await readFile(environment.ISSUER_SIGNING_KEY_FILE, "utf8") }) :
     loadEd25519PrivateKey({ seedHex: environment.ISSUER_SIGNING_KEY_SEED_HEX! });
   const portText = environment.PORT ?? "3000";
@@ -41,15 +65,16 @@ export async function startServer(environment: NodeJS.ProcessEnv = process.env):
   try {
     const clock = () => Math.floor(Date.now() / 1000);
     const voteStore = new VoteStore(db);
-    const adapter = policy.adapter.kind === "in_person_attestors_v1" ? new InPersonAttestorsAdapter(policy.adapter, { db, municipalityId: policy.municipalityId, policyVersion: policy.policyVersion, basis: policy.basis }) :
-      new RoebelCitizenNftAdapter(policy.adapter, { rpcUrl: environment.ROEBEL_RPC_URL! });
+    const adapter = await createRuntimeAdapter(policy, db, environment);
     const issuer = new IssuerService({ policy, store: new IssuerStore(db), adapter, signingKey, clock, commitmentLock: voteStore });
     const artifact = JSON.parse(await readFile(new URL("../artifacts/membership_vote.json", import.meta.url), "utf8"));
     if (typeof artifact.bytecode !== "string" || !artifact.bytecode) fail("circuit_artifact_invalid", 500);
     verifier = new VoteVerifier(artifact);
     const peers = new WeakMap<Request, string>();
     const voteHandlers = createVoteHttpHandlers({ store: voteStore, verifier, clock, clientKey: (request) => peers.get(request) ?? "unknown-peer" });
-    const handle = createHttpHandler({ issuer, voteHandlers });
+    const eudiHandlers = adapter instanceof EudiPidAdapter ? createEudiHttpHandlers({ issuer, adapter }) : undefined;
+    const staticHandlers = await createStaticHttpHandlers(environment.WEB_DIST_DIR ?? fileURLToPath(new URL("../web/dist", import.meta.url)));
+    const handle = createHttpHandler({ issuer, clientConfig, voteHandlers, eudiHandlers, staticHandlers });
     const server = createServer(async (incoming, outgoing) => {
       let response: Response;
       try {
@@ -57,6 +82,13 @@ export async function startServer(environment: NodeJS.ProcessEnv = process.env):
         // Host and forwarding headers are not authentication authority. The
         // configured public origin is what the NIP-98 signer must bind.
         if (!path.startsWith("/") || path.startsWith("//")) fail("request_url_invalid");
+        // Reject dot segments before WHATWG URL normalization can turn a
+        // traversal attempt into an allowlisted route. Never decode to a path.
+        const rawPath = path.split("?", 1)[0]!;
+        let decodedPath: string;
+        try { decodedPath = decodeURIComponent(rawPath); } catch { fail("route_not_found", 404); }
+        if (decodedPath.includes("\\") || decodedPath.split("/").some((part) => part === "." || part === "..") ||
+          (rawPath.startsWith("/assets/") && decodedPath !== rawPath)) fail("route_not_found", 404);
         const headers = new Headers();
         for (let i = 0; i < incoming.rawHeaders.length; i += 2) headers.append(incoming.rawHeaders[i]!, incoming.rawHeaders[i + 1]!);
         const init: RequestInit & { duplex?: "half" } = { method: incoming.method ?? "GET", headers };
@@ -65,7 +97,7 @@ export async function startServer(environment: NodeJS.ProcessEnv = process.env):
         const forwarded = clientKeyHeader ? headers.get(clientKeyHeader)?.trim() : undefined;
         peers.set(request, forwarded && forwarded.length <= 128 ? forwarded : incoming.socket.remoteAddress ?? "unknown-peer");
         response = await handle(request);
-      } catch (error) { response = errorResponse(error); }
+      } catch (error) { response = setSecurityHeaders(errorResponse(error), clientConfig.chain?.rpcUrl); }
       outgoing.writeHead(response.status, Object.fromEntries(response.headers));
       if (response.body) Readable.fromWeb(response.body as NodeReadableStream<Uint8Array>).pipe(outgoing);
       else outgoing.end();

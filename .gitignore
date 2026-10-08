@@ -12,6 +12,7 @@ circuits/*/target/
 contracts/out/
 contracts/cache/
 contracts/broadcast/
+web/dist/
 test/fixtures/evm-mocks/out/
 test/fixtures/evm-mocks/cache/
 .DS_Store

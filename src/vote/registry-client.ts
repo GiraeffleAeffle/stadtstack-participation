@@ -7,7 +7,9 @@ import { buildMerkleTree } from "./merkle.ts";
 
 export const ELECTION_REGISTRY_ABI = [{ type: "function", name: "getElection", stateMutability: "view", inputs: [{ name: "electionId", type: "bytes32" }], outputs: [{ name: "", type: "tuple", components: [
   { name: "municipalityId", type: "string" }, { name: "anchorRoot", type: "bytes32" }, { name: "treeDepth", type: "uint8" }, { name: "metadataHash", type: "bytes32" }, { name: "scope", type: "uint256" }, { name: "opensAt", type: "uint64" }, { name: "closesAt", type: "uint64" }, { name: "closed", type: "bool" }, { name: "tallyHash", type: "bytes32" }, { name: "acceptedBallots", type: "uint256" },
-] }] }] as const;
+] }] },
+{ type: "function", name: "openElection", stateMutability: "nonpayable", inputs: [{ name: "electionId", type: "bytes32" }, { name: "municipalityId", type: "string" }, { name: "anchorRoot", type: "bytes32" }, { name: "treeDepth", type: "uint8" }, { name: "metadataHash", type: "bytes32" }, { name: "scope", type: "uint256" }, { name: "opensAt", type: "uint64" }, { name: "closesAt", type: "uint64" }], outputs: [] },
+{ type: "function", name: "closeElection", stateMutability: "nonpayable", inputs: [{ name: "electionId", type: "bytes32" }, { name: "tallyHash", type: "bytes32" }, { name: "acceptedBallots", type: "uint256" }], outputs: [] }] as const;
 
 export type ChainElection = Readonly<{ municipalityId: string; anchorRoot: Hex; treeDepth: number; metadataHash: Hex; scope: bigint; opensAt: bigint; closesAt: bigint; closed: boolean; tallyHash: Hex; acceptedBallots: bigint }>;
 export type ElectionMirror = Readonly<{ electionId: Hex; metadata: ElectionMetadata; anchorRoot: Hex; metadataHash: Hex; scope: Hex; opensAt: number; closesAt: number; state: "draft" | "open" | "closed" }>;

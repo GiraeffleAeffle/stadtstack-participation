@@ -7,8 +7,11 @@ import { electionScope, metadataHash, validateMetadata, type ElectionMetadata } 
 import { parseField, type Hex } from "./hash.ts";
 import { buildMerkleTree } from "./merkle.ts";
 import { assertElectionMatchesChain, type ChainElection, type ElectionMirror } from "./registry-client.ts";
-import type { Ballot } from "./intake.ts";
+import type { Ballot } from "./ballot.ts";
 import type { Tally } from "./tally.ts";
+
+/** `closed`: the election is not open or its tally is already stored. */
+export type BallotInsertResult = "inserted" | "duplicate" | "closed";
 
 export function migrate(db: DatabaseSync): void {
   db.exec(`
@@ -113,6 +116,11 @@ export class VoteStore implements CommitmentLock {
     return row ? JSON.parse(row.mirror_json as string) as ElectionMirror : null;
   }
 
+  listElections(): ElectionMirror[] {
+    return this.db.prepare("SELECT mirror_json FROM vote_elections WHERE state IN ('open','closed') ORDER BY opens_at DESC,election_id ASC")
+      .all().map((row) => JSON.parse(row.mirror_json as string) as ElectionMirror);
+  }
+
   getAnchor(id: Hex): ElectionAnchor | null {
     const row = this.db.prepare("SELECT anchor_json FROM vote_anchors WHERE election_id=?").get(id);
     return row ? JSON.parse(row.anchor_json as string) as ElectionAnchor : null;
@@ -126,8 +134,18 @@ export class VoteStore implements CommitmentLock {
     return !!this.db.prepare("SELECT 1 FROM vote_ballots WHERE election_id=? AND nullifier=?").get(id, nullifier);
   }
 
-  insertBallot(ballot: Ballot): boolean {
-    return this.db.prepare("INSERT INTO vote_ballots(election_id,nullifier,choice_index,signal_hash,proof) VALUES(?,?,?,?,?) ON CONFLICT(election_id,nullifier) DO NOTHING").run(ballot.electionId, ballot.nullifier, ballot.choiceIndex, ballot.signalHash, ballot.proof).changes === 1;
+  /**
+   * Stores a ballot only while its election is open and no tally is stored,
+   * checked in the same statement, so a ballot is either counted or refused.
+   */
+  insertBallot(ballot: Ballot): BallotInsertResult {
+    const inserted = this.db.prepare(`INSERT INTO vote_ballots(election_id,nullifier,choice_index,signal_hash,proof)
+      SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM vote_elections WHERE election_id=? AND state='open')
+        AND NOT EXISTS (SELECT 1 FROM vote_tallies WHERE election_id=?)
+      ON CONFLICT(election_id,nullifier) DO NOTHING`)
+      .run(ballot.electionId, ballot.nullifier, ballot.choiceIndex, ballot.signalHash, ballot.proof, ballot.electionId, ballot.electionId).changes === 1;
+    if (inserted) return "inserted";
+    return this.hasNullifier(ballot.electionId, ballot.nullifier) ? "duplicate" : "closed";
   }
 
   listBallots(id: Hex): Ballot[] {
@@ -137,9 +155,18 @@ export class VoteStore implements CommitmentLock {
   putTally(id: Hex, tally: Tally, tallyHash: Hex): void {
     if (tally.electionId !== id) fail("tally_election_mismatch");
     if (tallyHash !== `0x${digest(tally)}`) fail("tally_hash_mismatch");
-    const current = this.getTally(id);
-    if (current && (current.tallyHash !== tallyHash || canonical(current.tally) !== canonical(tally))) fail("tally_immutable", 409);
-    this.db.prepare("INSERT INTO vote_tallies(election_id,tally_hash,tally_json) VALUES(?,?,?) ON CONFLICT(election_id) DO NOTHING").run(id, tallyHash, canonical(tally));
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const current = this.getTally(id);
+      if (current && (current.tallyHash !== tallyHash || canonical(current.tally) !== canonical(tally))) fail("tally_immutable", 409);
+      // A ballot stored after the tally was built would be acknowledged but
+      // uncounted. Storing the tally also closes intake (see insertBallot).
+      const counted = new Set(tally.ballots.map((ballot) => ballot.nullifier));
+      const stored = this.listBallots(id);
+      if (stored.length !== counted.size || stored.some((ballot) => !counted.has(ballot.nullifier))) fail("tally_stale", 409);
+      this.db.prepare("INSERT INTO vote_tallies(election_id,tally_hash,tally_json) VALUES(?,?,?) ON CONFLICT(election_id) DO NOTHING").run(id, tallyHash, canonical(tally));
+      this.db.exec("COMMIT");
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
   }
 
   getTally(id: Hex): Readonly<{ tally: Tally; tallyHash: Hex }> | null {

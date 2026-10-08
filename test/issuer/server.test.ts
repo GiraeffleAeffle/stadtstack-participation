@@ -15,7 +15,7 @@ test("server binds a random local port, publishes policy and mounts the vote lan
   try {
     const path = join(directory, "policy.json");
     await writeFile(path, JSON.stringify(policyInput()));
-    runtime = await startServer({ POLICY_PATH: path, DATABASE_PATH: ":memory:", ISSUER_SIGNING_KEY_SEED_HEX: "51".repeat(32), PORT: "0" });
+    runtime = await startServer({ POLICY_PATH: path, DATABASE_PATH: ":memory:", DISPLAY_NAME: "Beispielstadt", ISSUER_SIGNING_KEY_SEED_HEX: "51".repeat(32), PORT: "0" });
     const address = runtime.server.address();
     assert.ok(address && typeof address !== "string");
     const origin = `http://127.0.0.1:${address.port}`;
@@ -56,11 +56,11 @@ test("server keys ballot rate limits by the trusted proxy header, not the shared
       const mirror = store.openElection(electionMetadata.electionId, chainFor({ ...draft, state: "open" }));
       scope = mirror.scope;
       // A stored nullifier makes every request fail after the limiter and before proof verification.
-      assert.equal(store.insertBallot({ schemaVersion: "advisory_ballot_v1", electionId: mirror.electionId, choiceIndex: 0, nullifier, signalHash: signalHash(0, scope), proof: "0x00" }), true);
+      assert.equal(store.insertBallot({ schemaVersion: "advisory_ballot_v1", electionId: mirror.electionId, choiceIndex: 0, nullifier, signalHash: signalHash(0, scope), proof: "0x00" }), "inserted");
     } finally { db.close(); }
     const policyPath = join(directory, "policy.json");
     await writeFile(policyPath, JSON.stringify(policyInput()));
-    runtime = await startServer({ POLICY_PATH: policyPath, DATABASE_PATH: databasePath, ISSUER_SIGNING_KEY_SEED_HEX: "51".repeat(32), PORT: "0", CLIENT_KEY_HEADER: "X-Real-IP" });
+    runtime = await startServer({ POLICY_PATH: policyPath, DATABASE_PATH: databasePath, DISPLAY_NAME: "Beispielstadt", ISSUER_SIGNING_KEY_SEED_HEX: "51".repeat(32), PORT: "0", CLIENT_KEY_HEADER: "X-Real-IP" });
     const address = runtime.server.address();
     assert.ok(address && typeof address !== "string");
     const body = JSON.stringify({ schemaVersion: "advisory_ballot_v1", electionId: electionMetadata.electionId, choiceIndex: 0, nullifier, signalHash: signalHash(0, scope), proof: "0x00" });
@@ -79,10 +79,10 @@ test("server rejects an unsafe client-key header name and a Röbel adapter witho
   try {
     const attestorPolicy = join(directory, "policy.json");
     await writeFile(attestorPolicy, JSON.stringify(policyInput()));
-    await assert.rejects(startServer({ POLICY_PATH: attestorPolicy, DATABASE_PATH: ":memory:", ISSUER_SIGNING_KEY_SEED_HEX: "51".repeat(32), PORT: "0", CLIENT_KEY_HEADER: "x-real-ip\r\nx" }), /server_configuration_invalid/u);
+    await assert.rejects(startServer({ POLICY_PATH: attestorPolicy, DATABASE_PATH: ":memory:", DISPLAY_NAME: "Beispielstadt", ISSUER_SIGNING_KEY_SEED_HEX: "51".repeat(32), PORT: "0", CLIENT_KEY_HEADER: "x-real-ip\r\nx" }), /server_configuration_invalid/u);
     const roebelPolicy = join(directory, "roebel-policy.json");
     await writeFile(roebelPolicy, JSON.stringify({ ...policyInput(), adapter: { kind: "roebel_citizen_nft_v1", chainId: 100, contractAddress: `0x${"11".repeat(20)}`,
       expectedCodeHash: `0x${"22".repeat(32)}`, blockTag: "finalized", walletProofMaxAgeSeconds: 300 } }));
-    await assert.rejects(startServer({ POLICY_PATH: roebelPolicy, DATABASE_PATH: ":memory:", ISSUER_SIGNING_KEY_SEED_HEX: "51".repeat(32), PORT: "0" }), /server_configuration_invalid/u);
+    await assert.rejects(startServer({ POLICY_PATH: roebelPolicy, DATABASE_PATH: ":memory:", DISPLAY_NAME: "Beispielstadt", ISSUER_SIGNING_KEY_SEED_HEX: "51".repeat(32), PORT: "0" }), /server_configuration_invalid/u);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"],
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts", "../src/shared/canonical.ts", "../src/shared/ed25519.ts", "../src/shared/nostr.ts", "../src/shared/ids.ts", "../src/shared/errors.ts", "../src/shared/seams.ts", "../src/vote/hash.ts", "../src/vote/merkle.ts", "../src/vote/election.ts", "../src/vote/identity.ts", "../src/vote/prover.ts", "../src/vote/registry-client.ts", "../src/vote/client.ts", "../src/vote/anchor.ts", "../src/vote/ballot.ts", "../src/adapters/in-person-attestation.ts"],
+  "exclude": ["dist", "../node_modules"]
+}
