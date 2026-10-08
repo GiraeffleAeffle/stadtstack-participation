@@ -30,8 +30,11 @@ jobs:
           mkdir -p "$HOME/.nargo/bin" "$HOME/.bb"
           curl --fail --silent --show-error --location https://raw.githubusercontent.com/noir-lang/noirup/bedac8fbe6a059177c35e565f9f76db54a795976/noirup -o "$RUNNER_TEMP/noirup"
           bash "$RUNNER_TEMP/noirup" --version 1.0.0-beta.18
-          curl --fail --silent --show-error --location https://raw.githubusercontent.com/AztecProtocol/aztec-packages/7ee33765552f65607e0adafc86ad3c2c5d7d0f1c/barretenberg/cpp/installation/bbup -o "$RUNNER_TEMP/bbup"
-          bash "$RUNNER_TEMP/bbup" --version v3.0.0-nightly.20251104
+          # bbup derives an asset name this release does not publish and hides the
+          # failed download, so fetch the exact asset and check its digest.
+          curl --fail --silent --show-error --location https://github.com/AztecProtocol/aztec-packages/releases/download/v3.0.0-nightly.20251104/barretenberg-amd64-linux.tar.gz -o "$RUNNER_TEMP/bb.tar.gz"
+          echo "c6dae1092fed8d1230c2345ffcf4c903a2d787d0e220e9ea8c94b0511ed29c9b  $RUNNER_TEMP/bb.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/bb.tar.gz" -C "$HOME/.bb"
           echo "$HOME/.nargo/bin" >> "$GITHUB_PATH"
           echo "$HOME/.bb" >> "$GITHUB_PATH"
       - name: Verify installed versions
