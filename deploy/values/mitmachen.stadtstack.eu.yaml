@@ -1,7 +1,7 @@
 host: mitmachen.stadtstack.eu
-# The owner pins the successful image workflow digest here before release.
+# image-0.1.0, built by the Image workflow from f0ef2a2 (Verify passed); linux/amd64.
 image:
-  digest: ""
+  digest: "sha256:9f43bba9efb996a5b6d08f567a22d50c16c8a777cf34e90c4e7c130e1daaf81a"
 # Put the complete CLI-validated public policy here; never any private keys.
 policy: {}
 # Set all three only after the registry deployment; browser reads use this RPC.
