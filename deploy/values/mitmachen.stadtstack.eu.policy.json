@@ -1,0 +1,57 @@
+{
+  "policy": {
+    "acceptanceBaseUrl": "https://mitmachen.stadtstack.eu/v1/adoptions",
+    "adapter": {
+      "attestationWindowSeconds": 2592000,
+      "attestors": [
+        {
+          "attestorId": "platzhalter-a",
+          "ownSubjectPubkeys": [
+            "6840e7ee13eef2ef7495f5c479880dca7aa146262931d2ae9abe0ff72ff150dd"
+          ],
+          "publicKey": "72f4d8b169802ff86d2fd0aa7799599f4c2e215fbca1107bdc4cd50a8d897e85",
+          "validFrom": 1791540140,
+          "validUntil": 1823076140
+        },
+        {
+          "attestorId": "platzhalter-b",
+          "ownSubjectPubkeys": [
+            "c7607a54430416416d1a8d864d3c334943dc054021d268b175df7b527175befb"
+          ],
+          "publicKey": "430d9bff8a538809e74fae809a7c3f67ef4fef2308cbf539aa33f6fd810ba128",
+          "validFrom": 1791540140,
+          "validUntil": 1823076140
+        }
+      ],
+      "kind": "in_person_attestors_v1",
+      "requiredAttestations": 2,
+      "revocationThreshold": 1,
+      "validitySeconds": 31536000
+    },
+    "ags": "12064472",
+    "allowedAgentPubkeys": [
+      "8a0aa7961b3b41ad1920ce2347088237ee909710de55577571f202a36a4de280"
+    ],
+    "basis": {
+      "localityScope": null,
+      "minimumAgeYears": 16,
+      "nationality": "any",
+      "residence": "main_residence"
+    },
+    "issuer": "Stadtstack Mitmachen",
+    "issuerKeyId": "mitmachen-2026-10",
+    "issuerPublicKey": "9856fb1b3d7520c87f0683e1278e13e14152b15d2c9d6b46af3c82b28519bbb7",
+    "maxEventClockSkewSeconds": 60,
+    "municipalityId": "strausberg",
+    "policyVersion": "2026-10-09.closed",
+    "publicBaseUrl": "https://mitmachen.stadtstack.eu",
+    "receiptTtlSeconds": 600,
+    "registry": {
+      "digest": "sha256:38b6646c0c2f03e93131201301eedc05dd24faa07c5cf7947633b6c6eb128893",
+      "snapshotId": "registry-2026-10-03.1"
+    },
+    "schemaVersion": "municipal_eligibility_issuer_policy_v1",
+    "statusBaseUrl": "https://mitmachen.stadtstack.eu/v1/eligibility/status",
+    "statusMaxAgeSeconds": 60
+  }
+}

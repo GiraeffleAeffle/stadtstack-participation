@@ -112,8 +112,9 @@ by the server. Browser RPC access is outside pod NetworkPolicy and needs CORS.
    Stadtstack registry snapshot, `strausberg`, its verified AGS, exact host,
    chosen basis and three attestor public keys. Follow the exact flags/examples
    in OPERATIONS. Confirm issuer public key differs from every attestor key;
-   export the Stadtstack verifier policy. Put the complete validated public
-   JSON object under `policy:` in `deploy/values/mitmachen.stadtstack.eu.yaml`.
+   export the Stadtstack verifier policy. Write the validated policy, wrapped
+   as `{ "policy": … }`, to `deploy/values/mitmachen.stadtstack.eu.policy.json`;
+   helmfile reads it after the main values file. Never edit it by hand.
    For EUDI-only testing generate a separate 32-byte random
    `eudi-uniqueness-key` (0600) and use the EUDI policy/egress instead.
 5. **Cluster Secret:** after successful Verify CI, the owner publishes an
