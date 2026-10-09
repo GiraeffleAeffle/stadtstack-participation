@@ -242,3 +242,24 @@ deployable sample identity or fabricated image. Validate with the owner's real
 public policy and published digest before release. CI publication, amd64 image
 runtime, public DNS/TLS, real-device PRF, live network enforcement and backup
 restore remain owner verification gates, not claims from these local checks.
+
+## Live releases
+
+- **DNS, 9 October 2026.** At the owner's request and with a temporary Hetzner
+  token he provided (read from a mode-0600 file, never printed, deleted
+  afterwards; he revokes it): `mitmachen` A `77.42.11.9`, TTL 300, in zone
+  `stadtstack.eu`. All three authoritative name servers answered it.
+- **First attempt, 9 October, from `18762ad`.** Namespace and Secret stored;
+  the release timed out and Helm rolled it back (atomic). The pod requested
+  500m CPU and 1 Gi memory, and no node could fit it (free requests per node
+  0.38-0.58 CPU and 482-686 Mi). The certificate was issued; neither volume
+  claim was bound, so no Hetzner volume was created.
+- **Revision 1, 9 October, from `461c363`** (image `sha256:90ba8bd3…` built
+  from `30d5eeb`). Requests sized from measurement: proof verification peaks at
+  about 170 MiB RSS and 64 ms per ballot, so 100m/256 Mi requested, 1 CPU/768 Mi
+  limit. Rolled out in 36 s. Policy `2026-10-09.closed`: placeholder attestor
+  and agent keys nobody holds, so no one can be confirmed until a new version
+  lists the real attestors. Checked afterwards: Let's Encrypt certificate for
+  the exact host, HTTP redirects to HTTPS, security headers present, `/` and
+  `/pruefung` load without console errors and show the independent-operator
+  notice.
