@@ -263,3 +263,8 @@ restore remain owner verification gates, not claims from these local checks.
   the exact host, HTTP redirects to HTTPS, security headers present, `/` and
   `/pruefung` load without console errors and show the independent-operator
   notice.
+- **Revision 2, 9 October, from `c8abde6`** (image `sha256:31b4b884…` built from
+  `c4fa743`). Only the image changed: the clients in the Stadtstack family look
+  (fonts, colours, mark, "Teil von stadtstack.") and copy naming the operator
+  instead of the municipality. Rolled out in 17 s; checked live with fonts
+  loaded under the CSP and no console errors.
