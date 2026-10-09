@@ -18,4 +18,11 @@ This repository contains third-party material under its own licence:
    Copyright (c) 2026 GiraeffleAeffle. Used only by interoperability tests;
    each file header records the source path, commit and SHA-256.
 
+3. web/src/fonts/
+   Latin subsets of Fraunces (Copyright 2018 The Fraunces Project Authors),
+   Public Sans (Copyright 2015 The Public Sans Project Authors) and
+   IBM Plex Mono (Copyright 2017 IBM Corp., Reserved Font Name "Plex"),
+   each licensed under the SIL Open Font License 1.1.
+   See web/src/fonts/LICENSE.md and https://openfontlicense.org.
+
 Runtime dependencies are installed from npm and keep their own licences.

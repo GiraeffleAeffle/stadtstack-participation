@@ -51,7 +51,7 @@ async function refreshEligibility(): Promise<void> {
     settled = active && enrolled;
     element("in-person").hidden = config.adapterKind !== "in_person_attestors_v1" || active;
     element("eudi").hidden = config.adapterKind !== "eudi_pid_v1" || (active && enrolled);
-    if (config.adapterKind !== "in_person_attestors_v1" && config.adapterKind !== "eudi_pid_v1") element("eligibility-status").textContent = "Dieses Angebot unterstützt den Nachweis dieser Gemeinde noch nicht. Bitte wende dich an die Gemeinde.";
+    if (config.adapterKind !== "in_person_attestors_v1" && config.adapterKind !== "eudi_pid_v1") element("eligibility-status").textContent = "Dieses Angebot unterstützt diese Art des Nachweises noch nicht. Bitte wende dich an den Betreiber dieses Angebots.";
   } finally { eligibilityBusy = false; }
 }
 async function login(create: boolean): Promise<void> {

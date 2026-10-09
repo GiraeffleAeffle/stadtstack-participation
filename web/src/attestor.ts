@@ -36,9 +36,9 @@ async function login(create: boolean): Promise<void> {
   element<HTMLTextAreaElement>("attestor-key").value = publicKey;
   element("attestor-fingerprint").textContent = subjectFingerprint(publicKey);
   element("key-details").hidden = false; element("logout").hidden = false;
-  element("key-status").textContent = attestorId ? `Dein Prüfschlüssel ist freigegeben (${attestorId}).` : "Dein Prüfschlüssel ist noch nicht freigegeben. Kopiere den öffentlichen Schlüssel und sende ihn an die zuständige Person in der Gemeinde. Der geheime Schlüssel wird nicht geteilt.";
+  element("key-status").textContent = attestorId ? `Dein Prüfschlüssel ist freigegeben (${attestorId}).` : "Dein Prüfschlüssel ist noch nicht freigegeben. Kopiere den öffentlichen Schlüssel und sende ihn an den Betreiber dieses Angebots. Der geheime Schlüssel wird nicht geteilt.";
   for (const id of ["subject-section", "attest-section", "revoke-section"]) element(id).hidden = !attestorId;
-  status.textContent = attestorId ? "Du kannst jetzt einen Teilnahmecode prüfen." : "Sende deinen öffentlichen Prüfschlüssel an die Gemeinde.";
+  status.textContent = attestorId ? "Du kannst jetzt einen Teilnahmecode prüfen." : "Sende deinen öffentlichen Prüfschlüssel an den Betreiber dieses Angebots.";
 }
 async function scanCode(): Promise<void> {
   const detectorCandidate: unknown = Reflect.get(globalThis, "BarcodeDetector");
@@ -95,7 +95,7 @@ element("logout").addEventListener("click", () => { secretKey?.fill(0); secretKe
 document.addEventListener("visibilitychange", () => { if (document.hidden) stopCamera(); });
 void api<ClientConfig>("/v1/client-config").then((value) => {
   config = value; showConfig(config);
-  if (config.adapterKind !== "in_person_attestors_v1") { status.textContent = "Diese Gemeinde nutzt keine persönliche Prüfung über dieses Angebot."; return; }
+  if (config.adapterKind !== "in_person_attestors_v1") { status.textContent = "Dieses Angebot nutzt hier keine persönliche Prüfung."; return; }
   for (const [kind, text] of Object.entries(DOCUMENT_KINDS)) { const label = document.createElement("label"); const input = document.createElement("input"); input.type = "checkbox"; input.name = "documentKind"; input.value = kind; input.id = `document-${kind}`; label.append(input, document.createTextNode(text)); element("documents").append(label); }
   for (const [index, condition] of basisConditions(config).entries()) { const label = document.createElement("label"); const input = document.createElement("input"); input.type = "checkbox"; input.required = true; input.id = `condition-${index}`; label.append(input, document.createTextNode(`Ich habe geprüft: ${condition}.`)); element("conditions").append(label); }
   element<HTMLButtonElement>("create-passkey").disabled = false; element<HTMLButtonElement>("use-passkey").disabled = false; status.textContent = "Melde dich mit deinem Prüf-Passkey an.";

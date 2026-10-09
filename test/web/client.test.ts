@@ -65,14 +65,14 @@ test("client explains basis, recovery lock, duplicate vote and unknown failures 
   assert.match(errorMessage(new Error("duplicate_nullifier")), /bereits teilgenommen/u);
   assert.match(errorMessage(new Error("chain_root_mismatch")), /keine Stimme gesendet/u);
   assert.match(errorMessage(new Error("prf_unavailable")), /keinen unsicheren Ersatz/u);
-  assert.match(errorMessage(new Error("unknown sensitive failure")), /Gemeinde/u);
+  assert.match(errorMessage(new Error("unknown sensitive failure")), /Betreiber/u);
   assert.ok(!errorMessage(new Error("unknown sensitive failure")).includes("sensitive"));
 });
 
 test("all client endpoint error families give a German action without reflecting error codes", () => {
   const families: Readonly<Record<string, readonly string[]>> = {
     "erneut|neu|aktualisiere": ["auth_invalid", "enrollment_request_invalid", "commitment_invalid", "attestation_signature_invalid", "election_unknown", "request_url_invalid", "content_type_invalid", "json_invalid", "election_id_invalid", "eudi_request_invalid", "eudi_transaction_not_found", "eudi_expired", "proof_invalid", "ballot_invalid"],
-    "Gemeinde|Gemeinde nutzt": ["auth_url_invalid", "evidence_already_used", "commitment_already_enrolled", "attestor_adapter_unavailable"],
+    "Betreiber|nutzt hier": ["auth_url_invalid", "evidence_already_used", "commitment_already_enrolled", "attestor_adapter_unavailable"],
     "nicht|ungültig": ["attestation_invalid", "body_too_large", "choice_invalid", "signal_mismatch", "field_invalid", "election_id_mismatch", "election_not_open"],
     "warte|später": ["rate_limited", "verification_busy", "auth_replayed", "verifier_unavailable", "verifier_response_invalid", "tally_unavailable"],
     "beendet|danach": ["tally_not_closed"],
@@ -80,7 +80,7 @@ test("all client endpoint error families give a German action without reflecting
     "bereits": ["duplicate_nullifier"],
     "alten Schlüssel": ["commitment_locked"],
     "Teilnahmeberechtigung": ["eligibility_insufficient_attestations", "eligibility_revoked", "eligibility_expired", "eligibility_evidence_required", "eligibility_eudi_evidence_invalid", "eligibility_eudi_transaction_not_found", "eligibility_transaction_expired", "eligibility_transaction_used", "eligibility_presentation_pending", "eligibility_evidence_expired", "eligibility_policy_mismatch"],
-    "versuche|Gemeinde": ["internal_error", "eudi_adapter_configuration_invalid", "server_chain_configuration_invalid", "unknown_future_error"],
+    "versuche|Betreiber": ["internal_error", "eudi_adapter_configuration_invalid", "server_chain_configuration_invalid", "unknown_future_error"],
   };
   for (const [expected, codes] of Object.entries(families)) for (const code of codes) {
     const message = errorMessage(new Error(code));

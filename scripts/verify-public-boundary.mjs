@@ -47,8 +47,9 @@ const contentRules = [
   [/[A-Za-z0-9._%+-]+@(?!users\.noreply\.github\.com|example\.(?:org|com|net)|[A-Za-z0-9.-]*\.(?:example|test|invalid|localhost)\b)[A-Za-z0-9.-]+\.[a-z]{2,}/u, "email-address"],
 ];
 const hexKeyAssignment = /(?:PRIVATE_KEY|PRIVKEY|SECRET_KEY|SEED|MNEMONIC)[^\n]{0,24}?(?:0x)?([0-9a-fA-F]{64})/gu;
-// Verification key, and the public BN254 CRS prefix (provenance.json pins source and hashes).
-const binaryAllowed = [/^artifacts\/[^/]+\.vk$/u, /^web\/public\/assets\/crs\/g[12]\.dat$/u];
+// Verification key, the public BN254 CRS prefix (provenance.json pins source and
+// hashes) and the self-hosted OFL fonts (fonts/LICENSE.md names their sources).
+const binaryAllowed = [/^artifacts\/[^/]+\.vk$/u, /^web\/public\/assets\/crs\/g[12]\.dat$/u, /^web\/src\/fonts\/[a-z0-9-]+\.woff2$/u];
 const maxBytes = 1_048_576;
 
 const findings = [];

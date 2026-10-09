@@ -71,7 +71,7 @@ const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   prf_unavailable: "Dieser Passkey unterstützt die sichere Schlüsselfunktion (PRF) nicht. Geeignet sind zum Beispiel Chrome auf Android mit Google Passwortmanager, Safari ab Version 18 auf iOS/iPadOS 18 oder macOS 15 mit iCloud-Schlüsselbund sowie Chrome oder Edge mit einem PRF-fähigen FIDO2-Sicherheitsschlüssel. Unter Windows kann ein solcher Sicherheitsschlüssel nötig sein. Nicht jeder Passkey und Browser unterstützt PRF. Es gibt keinen unsicheren Ersatz. Versuche ein anderes unterstütztes Gerät.",
   subject_code_invalid: "Der Code ist ungültig oder gehört zu einer anderen Gemeinde. Bitte kopiere den vollständigen Code unverändert.",
   commitment_locked: "Eine Umfrage ist noch mit deinem alten Schlüssel offen. Ein neuer Schlüssel kann erst danach aktiviert werden.",
-  evidence_already_used: "Dieser Nachweis wird bereits verwendet. Bitte wende dich an die Gemeinde.",
+  evidence_already_used: "Dieser Nachweis wird bereits verwendet. Bitte wende dich an den Betreiber dieses Angebots.",
   duplicate_nullifier: "Du hast an dieser Umfrage bereits teilgenommen.",
   election_not_open: "Diese Umfrage ist noch nicht geöffnet oder bereits beendet.",
   commitment_not_anchored: "Du stehst nicht in der Liste dieser Umfrage. Du hast dich möglicherweise erst nach ihrer Einrichtung angemeldet. Bei späteren Umfragen kannst du teilnehmen.",
@@ -81,16 +81,16 @@ const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   attestation_invalid: "Die Bestätigung passt nicht zur aktuellen Regel oder dein Prüfschlüssel ist nicht mehr freigegeben.",
   attestation_signature_invalid: "Die Unterschrift konnte nicht geprüft werden. Melde dich bitte erneut an.",
   rate_limited: "Zu viele Anfragen. Bitte warte kurz.", verification_busy: "Die Prüfung ist ausgelastet. Bitte versuche es später erneut.",
-  proof_invalid: "Der Nachweis wurde nicht angenommen. Bitte versuche es erneut oder wende dich an die Gemeinde.",
+  proof_invalid: "Der Nachweis wurde nicht angenommen. Bitte versuche es erneut oder wende dich an den Betreiber dieses Angebots.",
   eudi_expired: "Die Wallet-Anfrage ist abgelaufen. Bitte starte eine neue Anfrage.",
-  commitment_already_enrolled: "Dieser Stimmenschlüssel ist bereits einer anderen Anmeldung zugeordnet. Bitte wende dich an die Gemeinde.",
+  commitment_already_enrolled: "Dieser Stimmenschlüssel ist bereits einer anderen Anmeldung zugeordnet. Bitte wende dich an den Betreiber dieses Angebots.",
   auth_required: "Bitte melde dich zuerst mit deinem Passkey an.",
-  auth_url_invalid: "Die Adresse dieses Angebots ist nicht richtig eingerichtet. Bitte informiere die Gemeinde.",
+  auth_url_invalid: "Die Adresse dieses Angebots ist nicht richtig eingerichtet. Bitte informiere den Betreiber dieses Angebots.",
   election_unknown: "Diese Umfrage ist nicht mehr verfügbar. Bitte aktualisiere die Umfragen.",
-  attestor_adapter_unavailable: "Diese Gemeinde nutzt keine persönliche Prüfung über dieses Angebot.",
+  attestor_adapter_unavailable: "Dieses Angebot nutzt hier keine persönliche Prüfung.",
   request_url_invalid: "Die Anfrageadresse ist ungültig. Bitte lade die Seite neu.",
   content_type_invalid: "Die Anfrage konnte nicht gelesen werden. Bitte lade die Seite neu.",
-  body_too_large: "Die Anfrage ist zu groß und wurde nicht angenommen. Bitte informiere die Gemeinde.",
+  body_too_large: "Die Anfrage ist zu groß und wurde nicht angenommen. Bitte informiere den Betreiber dieses Angebots.",
   json_invalid: "Die Anfrage konnte nicht gelesen werden. Bitte lade die Seite neu.",
   enrollment_request_invalid: "Die Anmeldung ist ungültig. Bitte lade die Seite neu und melde dich erneut an.",
   commitment_invalid: "Der Stimmenschlüssel ist ungültig. Bitte melde dich erneut mit deinem Passkey an.",
@@ -110,7 +110,7 @@ const ERROR_MESSAGES: Readonly<Record<string, string>> = {
 export function errorMessage(error: unknown): string {
   if (error instanceof DOMException && error.name === "NotAllowedError") return "Die Passkey-Anfrage wurde abgebrochen oder dein Gerät unterstützt sie nicht. Versuche es erneut.";
   const code = error instanceof Error ? error.message : "request_failed";
-  if (code.startsWith("chain_") || code === "anchor_root_mismatch") return "Die Umfragedaten stimmen nicht mit dem öffentlichen Register überein. Es wurde keine Stimme gesendet. Bitte informiere die Gemeinde.";
+  if (code.startsWith("chain_") || code === "anchor_root_mismatch") return "Die Umfragedaten stimmen nicht mit dem öffentlichen Register überein. Es wurde keine Stimme gesendet. Bitte informiere den Betreiber dieses Angebots.";
   if (code.startsWith("eligibility_")) return "Deine Teilnahmeberechtigung ist noch nicht aktiv, abgelaufen oder widerrufen. Bitte lasse sie erneut bestätigen.";
-  return ERROR_MESSAGES[code] ?? "Das hat nicht geklappt. Bitte versuche es erneut. Wenn das Problem bleibt, wende dich an die Gemeinde.";
+  return ERROR_MESSAGES[code] ?? "Das hat nicht geklappt. Bitte versuche es erneut. Wenn das Problem bleibt, wende dich an den Betreiber dieses Angebots.";
 }
