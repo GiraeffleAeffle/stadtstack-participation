@@ -17,9 +17,11 @@ storage:
   className: hcloud-volumes
   size: 2Gi
 web:
+  # Measured: proof verification peaks at about 170 MiB RSS and 64 ms per ballot.
+  # The shared cluster had under 700 Mi of requestable memory per node (9 Oct 2026).
   resources:
-    requests: {cpu: "500m", memory: 1Gi}
-    limits: {cpu: "2", memory: 4Gi}
+    requests: {cpu: "100m", memory: 256Mi}
+    limits: {cpu: "1", memory: 768Mi}
 backup:
   resources:
     requests: {cpu: "20m", memory: 64Mi}
