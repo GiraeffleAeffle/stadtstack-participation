@@ -4,6 +4,7 @@
 // operations hosts, forbidden file types and unexpected binaries. It prints
 // paths and rule names only, never matched values.
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 
 const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
@@ -50,6 +51,12 @@ const hexKeyAssignment = /(?:PRIVATE_KEY|PRIVKEY|SECRET_KEY|SEED|MNEMONIC)[^\n]{
 // Verification key, the public BN254 CRS prefix (provenance.json pins source and
 // hashes) and the self-hosted OFL fonts (fonts/LICENSE.md names their sources).
 const binaryAllowed = [/^artifacts\/[^/]+\.vk$/u, /^web\/public\/assets\/crs\/g[12]\.dat$/u, /^web\/src\/fonts\/[a-z0-9-]+\.woff2$/u];
+// Reviewed Mitmachen raster icons derived from the existing public brand mark.
+// Pin both path and bytes: an image extension alone must not admit new binaries.
+const publicIconHashes = new Map([
+  ["web/public/assets/apple-touch-icon.png", "2e66b969315960f7fd14f3689577fa7f27a4345e84cfe844eb5c416859fd6bd0"],
+  ["web/public/assets/favicon.ico", "cca5a67632f4dc1dfc08d15df4c22077f6379d653f56795b300964b36bfb89ea"],
+]);
 const maxBytes = 1_048_576;
 
 const findings = [];
@@ -60,6 +67,11 @@ for (const path of files) {
   if (!stat.isFile()) continue;
   if (stat.size > maxBytes) findings.push([path, "file-over-1MiB"]);
   const bytes = readFileSync(`${root}/${path}`);
+  const iconHash = publicIconHashes.get(path);
+  if (iconHash !== undefined) {
+    if (createHash("sha256").update(bytes).digest("hex") !== iconHash) findings.push([path, "public-icon-hash-mismatch"]);
+    continue;
+  }
   if (bytes.includes(0)) {
     if (!binaryAllowed.some((pattern) => pattern.test(path))) findings.push([path, "unexpected-binary"]);
     continue;

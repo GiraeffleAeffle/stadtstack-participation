@@ -83,6 +83,14 @@ a local anvil chain), the Noir tests, the Foundry tests (including a real proof
 verified by the Solidity verifier), the artifact reproducibility check, the web
 build and the public-boundary scan.
 
+The participant and attestor pages share the public Mitmachen icons in
+`web/public/assets`. The boundary scan permits the reviewed Apple touch PNG
+and favicon ICO only at their exact paths and SHA-256 hashes pinned in
+`scripts/verify-public-boundary.mjs`; other PNG/ICO files remain forbidden
+binaries. When intentionally replacing either raster icon, review the artwork
+and update its pinned hash in the same change. File-size and forbidden-path
+checks still apply.
+
 `npm run web:dev` serves the clients with hot reload and proxies `/v1` to a
 local server (`VITE_API_TARGET`, default `http://127.0.0.1:8787`).
 
